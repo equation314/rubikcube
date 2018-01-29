@@ -43,6 +43,38 @@ function addEvent() {
     },
     false
   );
+
+  let shakeThreshold = 2000;
+  let lastUpdate = 0,
+    lastX = 0,
+    lastY = 0,
+    lastZ = 0;
+  window.addEventListener(
+    "devicemotion",
+    event => {
+      let acceleration = event.accelerationIncludingGravity;
+      let curTime = new Date().getTime();
+
+      if (curTime - lastUpdate > 100) {
+        let x = acceleration.x;
+        let y = acceleration.y;
+        let z = acceleration.z;
+
+        let speed =
+          Math.abs(x + y + z - lastX - lastY - lastZ) /
+          (curTime - lastUpdate) *
+          10000;
+
+        if (speed > shakeThreshold) randomShuffle(20);
+
+        lastX = x;
+        lastY = y;
+        lastZ = z;
+        lastUpdate = curTime;
+      }
+    },
+    false
+  );
 }
 
 async function randomShuffle(num) {
