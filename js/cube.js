@@ -1,13 +1,31 @@
 const ORDER = 4;
 
+const LAYER_COUNT = Math.floor(ORDER / 2);
+
 const SIZE = ORDER;
 
 const SUB_SIZE = SIZE / ORDER;
 
-const FACE_COLOR = ["red", "orange", "white", "yellow", "green", "blue"];
+const FACE_COLOR = [
+  "red", // Right
+  "orange", // Left
+  "white", // Up
+  "yellow", // Down
+  "green", // Front
+  "blue" //Back
+];
 
-var camera, scene, renderer, controls, stats;
+var camera, scene, renderer, controls, stats, rotation;
 var cubes = [];
+var faceToCube = [];
+
+function getCubeId(x, y, z) {
+  return (x * ORDER + y) * ORDER + z;
+}
+
+function getFaceId(face, layer, r, c) {
+  return ((face * LAYER_COUNT + layer) * ORDER + r) * ORDER + c;
+}
 
 function init() {
   let w = window.innerWidth,
@@ -30,6 +48,8 @@ function init() {
   stats = new Stats();
   document.body.appendChild(stats.dom);
 
+  rotation = new Rotation(rotate);
+
   createScene();
 }
 
@@ -37,6 +57,7 @@ function animate() {
   requestAnimationFrame(animate);
   controls.update();
   stats.update();
+  rotation.update();
   renderer.render(scene, camera);
 }
 
@@ -58,9 +79,50 @@ function createAxis() {
   scene.add(z);
 }
 
-function createScene() {
-  createAxis();
+function calcFaceToCube(x, y, z) {
+  for (let face = 0; face < 6; face++) {
+    let layer, r, c;
 
+    switch (face) {
+      case 0:
+        layer = ORDER - 1 - x;
+        r = ORDER - y - 1;
+        c = ORDER - z - 1;
+        break;
+      case 1:
+        layer = x;
+        r = ORDER - y - 1;
+        c = z;
+        break;
+      case 2:
+        layer = ORDER - 1 - y;
+        r = z;
+        c = x;
+        break;
+      case 3:
+        layer = y;
+        r = ORDER - z - 1;
+        c = x;
+        break;
+      case 4:
+        layer = ORDER - 1 - z;
+        r = ORDER - y - 1;
+        c = x;
+        break;
+      case 5:
+        layer = z;
+        r = ORDER - y - 1;
+        c = ORDER - x - 1;
+        break;
+    }
+
+    if (layer < LAYER_COUNT) {
+      faceToCube[getFaceId(face, layer, r, c)] = getCubeId(x, y, z);
+    }
+  }
+}
+
+function createCubes() {
   for (let i = 0; i < ORDER; i++)
     for (let j = 0; j < ORDER; j++)
       for (let k = 0; k < ORDER; k++)
@@ -72,6 +134,8 @@ function createScene() {
           k == 0 ||
           k == ORDER - 1
         ) {
+          calcFaceToCube(i, j, k);
+
           let cubeGeo = new THREE.BoxGeometry(SUB_SIZE, SUB_SIZE, SUB_SIZE);
           cubeGeo.faces.forEach((face, index) => {
             let id = Math.floor(index / 2);
@@ -105,11 +169,16 @@ function createScene() {
             })
           );
 
-          scene.add(frame);
+          cube.add(frame);
           scene.add(cube);
 
-          cubes[i * ORDER * ORDER + j * ORDER + k] = cubeGeo;
+          cubes[getCubeId(i, j, k)] = cube;
         }
+}
+
+function createScene() {
+  createAxis();
+  createCubes();
 
   for (let i = 0; i < 3; i++) {
     let light1 = new THREE.DirectionalLight("white");
@@ -120,6 +189,36 @@ function createScene() {
     light2.position.set((i == 0) * -SIZE, (i == 1) * -SIZE, (i == 2) * -SIZE);
     scene.add(light2);
   }
+}
+
+function rotate(face, layers, angle, dir = 1) {
+  for (l of layers)
+    if (l < LAYER_COUNT)
+      for (let i = 0; i < ORDER; i++)
+        for (let j = 0; j < ORDER; j++) {
+          let id = faceToCube[getFaceId(face, l, i, j)];
+          if (!cubes[id]) continue;
+          switch (face) {
+            case 0:
+              cubes[id].rotation.x = -angle * dir;
+              break;
+            case 1:
+              cubes[id].rotation.x = angle * dir;
+              break;
+            case 2:
+              cubes[id].rotation.y = -angle * dir;
+              break;
+            case 3:
+              cubes[id].rotation.y = angle * dir;
+              break;
+            case 4:
+              cubes[id].rotation.z = -angle * dir;
+              break;
+            case 5:
+              cubes[id].rotation.z = angle * dir;
+              break;
+          }
+        }
 }
 
 $(document).ready(() => {
