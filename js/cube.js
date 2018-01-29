@@ -19,7 +19,8 @@ function init() {
   camera.lookAt(new THREE.Vector3(0, 0, 0));
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setClearColor("#333");
+  // renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setClearColor("#222");
   renderer.setSize(w, h);
   document.body.appendChild(renderer.domElement);
 
@@ -94,7 +95,7 @@ function createScene() {
 
           let cube = new THREE.Mesh(
             cubeGeo,
-            new THREE.MeshBasicMaterial({
+            new THREE.MeshPhongMaterial({
               vertexColors: THREE.FaceColors,
               side: THREE.DoubleSide
             })
@@ -105,6 +106,16 @@ function createScene() {
 
           cubes[i * ORDER * ORDER + j * ORDER + k] = cubeGeo;
         }
+
+  for (let i = 0; i < 3; i++) {
+    let light1 = new THREE.DirectionalLight("white");
+    light1.position.set((i == 0) * SIZE, (i == 1) * SIZE, (i == 2) * SIZE);
+    scene.add(light1);
+
+    let light2 = new THREE.DirectionalLight("white");
+    light2.position.set((i == 0) * -SIZE, (i == 1) * -SIZE, (i == 2) * -SIZE);
+    scene.add(light2);
+  }
 }
 
 $(document).ready(() => {
