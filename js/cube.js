@@ -6,7 +6,7 @@ const SUB_SIZE = SIZE / ORDER;
 
 const FACE_COLOR = ["red", "orange", "white", "yellow", "green", "blue"];
 
-var camera, scene, renderer, controls;
+var camera, scene, renderer, controls, stats;
 var cubes = [];
 
 function init() {
@@ -27,12 +27,16 @@ function init() {
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
 
+  stats = new Stats();
+  document.body.appendChild(stats.dom);
+
   createScene();
 }
 
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+  stats.update();
   renderer.render(scene, camera);
 }
 
