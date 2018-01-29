@@ -48,7 +48,7 @@ function init() {
   stats = new Stats();
   document.body.appendChild(stats.dom);
 
-  rotation = new Rotation(rotate);
+  rotation = new Rotation(onRotate, onRotateStop);
 
   createScene();
 }
@@ -191,7 +191,7 @@ function createScene() {
   }
 }
 
-function rotate(face, layers, angle, dir = 1) {
+function onRotate(face, layers, dir, angle) {
   for (l of layers)
     if (l < LAYER_COUNT)
       for (let i = 0; i < ORDER; i++)
@@ -219,6 +219,89 @@ function rotate(face, layers, angle, dir = 1) {
               break;
           }
         }
+}
+
+function swapFace4(fs, rs, cs, dir) {
+  let tmp = [];
+  for (let i = 0; i < 4; i++) {
+    let id = faceToCube[getFaceId(fs[i], 0, rs[i], cs[i])];
+    tmp[(i + dir + 4) % 4] = cubes[id].geometry.faces[fs[i] * 2].color.clone();
+  }
+  for (let i = 0; i < 4; i++) {
+    let id = faceToCube[getFaceId(fs[i], 0, rs[i], cs[i])];
+    cubes[id].geometry.colorsNeedUpdate = true;
+    for (let j = 0; j < 2; j++)
+      cubes[id].geometry.faces[fs[i] * 2 + j].color.set(tmp[i]);
+  }
+}
+
+function rotateFace(face, dir) {
+  for (let i = Math.floor(ORDER / 2) - 1; i >= 0; i--)
+    for (let j = Math.ceil(ORDER / 2) - 1; j >= 0; j--) {
+      let f = [face],
+        r = [i],
+        c = [j];
+      for (let k = 1; k < 4; k++) {
+        r[k] = c[k - 1];
+        c[k] = ORDER - r[k - 1] - 1;
+        f[k] = face;
+      }
+      swapFace4(f, r, c, dir);
+    }
+}
+
+function onRotateStop(face, layers, dir) {
+  for (l of layers)
+    if (l < LAYER_COUNT) {
+      if (l == 0) rotateFace(face, dir);
+      for (i = 0; i < ORDER; i++) {
+        switch (face) {
+          case 0:
+            swapFace4(
+              [4, 2, 5, 3],
+              [ORDER - i - 1, ORDER - i - 1, i, ORDER - i - 1],
+              [ORDER - l - 1, ORDER - l - 1, l, ORDER - l - 1],
+              dir
+            );
+            break;
+          case 1:
+            swapFace4(
+              [5, 2, 4, 3],
+              [ORDER - i - 1, i, i, i],
+              [ORDER - l - 1, l, l, l],
+              dir
+            );
+            break;
+          case 2:
+            swapFace4([1, 5, 0, 4], [l, l, l, l], [i, i, i, i], dir);
+            break;
+          case 3:
+            swapFace4(
+              [1, 4, 0, 5],
+              [ORDER - l - 1, ORDER - l - 1, ORDER - l - 1, ORDER - l - 1],
+              [i, i, i, i],
+              dir
+            );
+            break;
+          case 4:
+            swapFace4(
+              [1, 2, 0, 3],
+              [ORDER - i - 1, ORDER - l - 1, i, l],
+              [ORDER - l - 1, i, l, ORDER - i - 1],
+              dir
+            );
+            break;
+          case 5:
+            swapFace4(
+              [0, 2, 1, 3],
+              [ORDER - i - 1, l, i, ORDER - l - 1],
+              [ORDER - l - 1, ORDER - i - 1, l, i],
+              dir
+            );
+            break;
+        }
+      }
+    }
 }
 
 $(document).ready(() => {
