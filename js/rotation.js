@@ -1,11 +1,11 @@
 const Rotation = function(onRotate, onRotateStop) {
-  this.rotationSpeed = 10;
+  const rotationSpeed = 60;
 
   this.rotating = false;
 
   this.update = () => {
     if (!this.rotating) return;
-    this.angle += 0.01 * this.rotationSpeed;
+    this.angle += 0.1;
 
     if (this.angle > Math.PI / 2) this.stop();
     else onRotate && onRotate(this.face, this.layers, this.dir, this.angle);
@@ -14,17 +14,24 @@ const Rotation = function(onRotate, onRotateStop) {
   this.stop = () => {
     this.angle = 0;
     this.rotating = false;
+    clearInterval(this.timer);
     onRotate && onRotate(this.face, this.layers, this.dir, 0);
     onRotateStop && onRotateStop(this.face, this.layers, this.dir);
   };
 
   this.start = (face, layers, dir) => {
     if (this.rotating) return;
-    this.face = face;
-    this.layers = layers;
-    this.dir = dir;
-    this.rotating = true;
-    this.angle = 0;
+    return new Promise((resolve, reject) => {
+      this.face = face;
+      this.layers = layers;
+      this.dir = dir;
+      this.rotating = true;
+      this.angle = 0;
+      this.timer = setInterval(() => {
+        this.update();
+        if (!this.rotating) resolve();
+      }, 1000 / rotationSpeed);
+    });
   };
 
   this.onKeyDown = event => {
