@@ -24,7 +24,6 @@ function init() {
   document.body.appendChild(dom);
 
   controls = new THREE.TrackballControls(camera, dom);
-  controls.enableDamping = true;
 
   stats = new Stats();
   document.body.appendChild(stats.dom);
@@ -146,9 +145,12 @@ function onMouseUp(event) {
       layers = [dragState.rotLayer],
       dir = dragState.rotDir;
     if (dstAngle) num = Math.abs(num) % 4;
-    rotation.start(face, layers, 0, dragState.angle, dstAngle, () =>
-      rubikCube.rotateModel(face, layers, dir, num)
-    );
+
+    enableDrag = false;
+    rotation.start(face, layers, 0, dragState.angle, dstAngle, () => {
+      rubikCube.rotateModel(face, layers, dir, num);
+      enableDrag = true;
+    });
   }
   controls.enabled = true;
   dragState = null;

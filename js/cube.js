@@ -9,13 +9,17 @@ const RubikCube = function() {
 
   const SUB_SIZE = SIZE / ORDER;
 
+  const SEPARATOR_WIDTH = SUB_SIZE / 100;
+
+  const INTERIOR_COLOR = '#333';
+
   const FACE_COLOR = [
-    'red', // Right
-    'orange', // Left
-    'white', // Up
-    'yellow', // Down
-    'green', // Front
-    'blue', //Back
+    'rgb(240, 48, 49)', // Right, red
+    'rgb(197, 117, 22)', // Left, orange
+    'rgb(235, 235, 235)', // Up, white
+    'rgb(216, 216, 31)', // Down, yellow
+    'rgb(42, 196, 75)', // Front, green
+    'rgb(53, 94, 229)', // Back, blue
   ];
 
   var cubes = [];
@@ -104,7 +108,8 @@ const RubikCube = function() {
           if (i == 0 || i == ORDER - 1 || j == 0 || j == ORDER - 1 || k == 0 || k == ORDER - 1) {
             calcFaceToCube(i, j, k);
 
-            let cubeGeo = new THREE.BoxGeometry(SUB_SIZE, SUB_SIZE, SUB_SIZE);
+            let size = SUB_SIZE - SEPARATOR_WIDTH;
+            let cubeGeo = new THREE.BoxGeometry(size, size, size);
             cubeGeo.faces.forEach((face, index) => {
               let id = Math.floor(index / 2);
               let color =
@@ -115,7 +120,7 @@ const RubikCube = function() {
                 (id == 4 && k == ORDER - 1) ||
                 (id == 5 && k == 0)
                   ? FACE_COLOR[id]
-                  : '#666';
+                  : INTERIOR_COLOR;
               face.color = new THREE.Color(color);
             });
             cubeGeo.translate(
@@ -124,10 +129,10 @@ const RubikCube = function() {
               (SUB_SIZE - SIZE) / 2 + SUB_SIZE * k
             );
 
-            let frame = new THREE.LineSegments(
-              new THREE.EdgesGeometry(cubeGeo),
-              new THREE.LineBasicMaterial({ color: 'black' })
-            );
+            // let frame = new THREE.LineSegments(
+            //   new THREE.EdgesGeometry(cubeGeo),
+            //   new THREE.LineBasicMaterial({ color: 'black' })
+            // );
 
             let cube = new THREE.Mesh(
               cubeGeo,
@@ -137,7 +142,7 @@ const RubikCube = function() {
               })
             );
 
-            cube.add(frame);
+            // cube.add(frame);
             scene.add(cube);
 
             cube.cubeId = getCubeId(i, j, k);
