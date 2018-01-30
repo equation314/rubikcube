@@ -126,11 +126,14 @@ function onMouseDown(event) {
   let intersects = raycaster.intersectObjects(scene.children);
   for (let int of intersects)
     if (int.object.type == 'Mesh') {
+      let cube = int.object;
+      let face = Math.floor(int.faceIndex / 2);
+      if (!rubikCube.getRcOnFace(cube, face)) break;
       dragState = {
         proj: raycaster.ray.direction.clone(),
-        cube: int.object,
         norm: int.face.normal.clone(),
-        face: Math.floor(int.faceIndex / 2),
+        cube,
+        face,
       };
       controls.enabled = false;
       break;
