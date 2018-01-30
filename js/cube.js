@@ -2,24 +2,26 @@ const RubikCube = function() {
   const ORDER = 4;
   this.ORDER = ORDER;
 
-  const LAYER_COUNT = Math.floor(ORDER / 2);
+  const LAYER_COUNT = Math.ceil(ORDER / 2);
   this.LAYER_COUNT = LAYER_COUNT;
 
-  const SIZE = ORDER;
+  const SIZE = 3;
 
   const SUB_SIZE = SIZE / ORDER;
 
   const FACE_COLOR = [
-    "red", // Right
-    "orange", // Left
-    "white", // Up
-    "yellow", // Down
-    "green", // Front
-    "blue" //Back
+    'red', // Right
+    'orange', // Left
+    'white', // Up
+    'yellow', // Down
+    'green', // Front
+    'blue', //Back
   ];
 
   var cubes = [];
   var faceToCube = [];
+  var cubeIdToRc = [];
+  this.cubes = cubes;
 
   function getCubeId(x, y, z) {
     return (x * ORDER + y) * ORDER + z;
@@ -28,6 +30,10 @@ const RubikCube = function() {
   function getFaceId(face, layer, r, c) {
     return ((face * LAYER_COUNT + layer) * ORDER + r) * ORDER + c;
   }
+
+  this.getRcOnFace = (cube, face) => {
+    return cubeIdToRc[cube.cubeId * 6 + face];
+  };
 
   function calcFaceToCube(x, y, z) {
     for (let face = 0; face < 6; face++) {
@@ -68,6 +74,7 @@ const RubikCube = function() {
 
       if (layer < LAYER_COUNT) {
         faceToCube[getFaceId(face, layer, r, c)] = getCubeId(x, y, z);
+        cubeIdToRc[getCubeId(x, y, z) * 6 + face] = { r, c };
       }
     }
   }
@@ -75,15 +82,15 @@ const RubikCube = function() {
   function createAxis(scene) {
     let gx = new THREE.Geometry();
     gx.vertices.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, SIZE));
-    let x = new THREE.Line(gx, new THREE.LineBasicMaterial({ color: "red" }));
+    let x = new THREE.Line(gx, new THREE.LineBasicMaterial({ color: 'red' }));
 
     let gy = new THREE.Geometry();
     gy.vertices.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(SIZE, 0, 0));
-    let y = new THREE.Line(gy, new THREE.LineBasicMaterial({ color: "green" }));
+    let y = new THREE.Line(gy, new THREE.LineBasicMaterial({ color: 'green' }));
 
     let gz = new THREE.Geometry();
     gz.vertices.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, SIZE, 0));
-    let z = new THREE.Line(gz, new THREE.LineBasicMaterial({ color: "blue" }));
+    let z = new THREE.Line(gz, new THREE.LineBasicMaterial({ color: 'blue' }));
 
     scene.add(x);
     scene.add(y);
@@ -94,14 +101,7 @@ const RubikCube = function() {
     for (let i = 0; i < ORDER; i++)
       for (let j = 0; j < ORDER; j++)
         for (let k = 0; k < ORDER; k++)
-          if (
-            i == 0 ||
-            i == ORDER - 1 ||
-            j == 0 ||
-            j == ORDER - 1 ||
-            k == 0 ||
-            k == ORDER - 1
-          ) {
+          if (i == 0 || i == ORDER - 1 || j == 0 || j == ORDER - 1 || k == 0 || k == ORDER - 1) {
             calcFaceToCube(i, j, k);
 
             let cubeGeo = new THREE.BoxGeometry(SUB_SIZE, SUB_SIZE, SUB_SIZE);
@@ -115,7 +115,7 @@ const RubikCube = function() {
                 (id == 4 && k == ORDER - 1) ||
                 (id == 5 && k == 0)
                   ? FACE_COLOR[id]
-                  : "#666";
+                  : '#666';
               face.color = new THREE.Color(color);
             });
             cubeGeo.translate(
@@ -126,21 +126,22 @@ const RubikCube = function() {
 
             let frame = new THREE.LineSegments(
               new THREE.EdgesGeometry(cubeGeo),
-              new THREE.LineBasicMaterial({ color: "black" })
+              new THREE.LineBasicMaterial({ color: 'black' })
             );
 
             let cube = new THREE.Mesh(
               cubeGeo,
               new THREE.MeshPhongMaterial({
                 vertexColors: THREE.FaceColors,
-                side: THREE.DoubleSide
+                side: THREE.DoubleSide,
               })
             );
 
             cube.add(frame);
             scene.add(cube);
 
-            cubes[getCubeId(i, j, k)] = cube;
+            cube.cubeId = getCubeId(i, j, k);
+            cubes[cube.cubeId] = cube;
           }
   }
 
@@ -149,17 +150,17 @@ const RubikCube = function() {
     createCubes(scene);
 
     for (let i = 0; i < 3; i++) {
-      let light1 = new THREE.DirectionalLight("white");
+      let light1 = new THREE.DirectionalLight('white');
       light1.position.set((i == 0) * SIZE, (i == 1) * SIZE, (i == 2) * SIZE);
       scene.add(light1);
 
-      let light2 = new THREE.DirectionalLight("white");
+      let light2 = new THREE.DirectionalLight('white');
       light2.position.set((i == 0) * -SIZE, (i == 1) * -SIZE, (i == 2) * -SIZE);
       scene.add(light2);
     }
   };
 
-  this.onRotate = (face, layers, dir, angle) => {
+  this.rotateScene = (face, layers, angle) => {
     for (l of layers)
       if (l < LAYER_COUNT)
         for (let i = 0; i < ORDER; i++)
@@ -168,22 +169,22 @@ const RubikCube = function() {
             if (!cubes[id]) continue;
             switch (face) {
               case 0:
-                cubes[id].rotation.x = -angle * dir;
+                cubes[id].rotation.x = -angle;
                 break;
               case 1:
-                cubes[id].rotation.x = angle * dir;
+                cubes[id].rotation.x = angle;
                 break;
               case 2:
-                cubes[id].rotation.y = -angle * dir;
+                cubes[id].rotation.y = -angle;
                 break;
               case 3:
-                cubes[id].rotation.y = angle * dir;
+                cubes[id].rotation.y = angle;
                 break;
               case 4:
-                cubes[id].rotation.z = -angle * dir;
+                cubes[id].rotation.z = -angle;
                 break;
               case 5:
-                cubes[id].rotation.z = angle * dir;
+                cubes[id].rotation.z = angle;
                 break;
             }
           }
@@ -193,15 +194,12 @@ const RubikCube = function() {
     let tmp = [];
     for (let i = 0; i < 4; i++) {
       let id = faceToCube[getFaceId(fs[i], 0, rs[i], cs[i])];
-      tmp[(i + dir + 4) % 4] = cubes[id].geometry.faces[
-        fs[i] * 2
-      ].color.clone();
+      tmp[(i + dir + 4) % 4] = cubes[id].geometry.faces[fs[i] * 2].color.clone();
     }
     for (let i = 0; i < 4; i++) {
       let id = faceToCube[getFaceId(fs[i], 0, rs[i], cs[i])];
       cubes[id].geometry.colorsNeedUpdate = true;
-      for (let j = 0; j < 2; j++)
-        cubes[id].geometry.faces[fs[i] * 2 + j].color.set(tmp[i]);
+      for (let j = 0; j < 2; j++) cubes[id].geometry.faces[fs[i] * 2 + j].color.set(tmp[i]);
     }
   }
 
@@ -220,57 +218,53 @@ const RubikCube = function() {
       }
   }
 
-  this.onRotateStop = (face, layers, dir) => {
+  this.rotateModel = (face, layers, dir, num = 1) => {
     for (l of layers)
-      if (l < LAYER_COUNT) {
-        if (l == 0) rotateFace(face, dir);
-        for (i = 0; i < ORDER; i++) {
-          switch (face) {
-            case 0:
-              swapFace4(
-                [4, 2, 5, 3],
-                [ORDER - i - 1, ORDER - i - 1, i, ORDER - i - 1],
-                [ORDER - l - 1, ORDER - l - 1, l, ORDER - l - 1],
-                dir
-              );
-              break;
-            case 1:
-              swapFace4(
-                [5, 2, 4, 3],
-                [ORDER - i - 1, i, i, i],
-                [ORDER - l - 1, l, l, l],
-                dir
-              );
-              break;
-            case 2:
-              swapFace4([1, 5, 0, 4], [l, l, l, l], [i, i, i, i], dir);
-              break;
-            case 3:
-              swapFace4(
-                [1, 4, 0, 5],
-                [ORDER - l - 1, ORDER - l - 1, ORDER - l - 1, ORDER - l - 1],
-                [i, i, i, i],
-                dir
-              );
-              break;
-            case 4:
-              swapFace4(
-                [1, 2, 0, 3],
-                [ORDER - i - 1, ORDER - l - 1, i, l],
-                [ORDER - l - 1, i, l, ORDER - i - 1],
-                dir
-              );
-              break;
-            case 5:
-              swapFace4(
-                [0, 2, 1, 3],
-                [ORDER - i - 1, l, i, ORDER - l - 1],
-                [ORDER - l - 1, ORDER - i - 1, l, i],
-                dir
-              );
-              break;
+      if (l < LAYER_COUNT)
+        for (; num > 0; num--) {
+          if (l == 0) rotateFace(face, dir);
+          for (i = 0; i < ORDER; i++) {
+            switch (face) {
+              case 0:
+                swapFace4(
+                  [4, 2, 5, 3],
+                  [ORDER - i - 1, ORDER - i - 1, i, ORDER - i - 1],
+                  [ORDER - l - 1, ORDER - l - 1, l, ORDER - l - 1],
+                  dir
+                );
+                break;
+              case 1:
+                swapFace4([5, 2, 4, 3], [ORDER - i - 1, i, i, i], [ORDER - l - 1, l, l, l], dir);
+                break;
+              case 2:
+                swapFace4([1, 5, 0, 4], [l, l, l, l], [i, i, i, i], dir);
+                break;
+              case 3:
+                swapFace4(
+                  [1, 4, 0, 5],
+                  [ORDER - l - 1, ORDER - l - 1, ORDER - l - 1, ORDER - l - 1],
+                  [i, i, i, i],
+                  dir
+                );
+                break;
+              case 4:
+                swapFace4(
+                  [1, 2, 0, 3],
+                  [ORDER - i - 1, ORDER - l - 1, i, l],
+                  [ORDER - l - 1, i, l, ORDER - i - 1],
+                  dir
+                );
+                break;
+              case 5:
+                swapFace4(
+                  [0, 2, 1, 3],
+                  [ORDER - i - 1, l, i, ORDER - l - 1],
+                  [ORDER - l - 1, ORDER - i - 1, l, i],
+                  dir
+                );
+                break;
+            }
           }
         }
-      }
   };
 };

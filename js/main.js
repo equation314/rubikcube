@@ -1,23 +1,32 @@
-var camera, scene, renderer, controls, stats, rotation;
+var camera, scene, renderer, raycaster, controls;
+var stats, mouse, rotation, stats, dom;
 var rubikCube;
+var lastAcc = { x: 0, y: 0, z: 0, t: 0 };
+var dragState = null;
+var enableDrag = true;
 
 function init() {
   let w = window.innerWidth,
     h = window.innerHeight;
   scene = new THREE.Scene();
+  raycaster = new THREE.Raycaster();
 
   camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
-  camera.position.set(3, 2, 8);
+  camera.position.set(4, 3, 7);
   camera.lookAt(new THREE.Vector3(0, 0, 0));
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   // renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setClearColor("#222");
+  renderer.setClearColor('#222');
   renderer.setSize(w, h);
-  document.body.appendChild(renderer.domElement);
+
+  dom = renderer.domElement;
+  document.body.appendChild(dom);
 
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
+  controls.rotateSpeed = 0.05;
+  controls.dampingFactor = 0.1;
 
   stats = new Stats();
   document.body.appendChild(stats.dom);
@@ -25,7 +34,9 @@ function init() {
   rubikCube = new RubikCube();
   rubikCube.createScene(scene);
 
-  rotation = new Rotation(rubikCube.onRotate, rubikCube.onRotateStop);
+  rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
+
+  mouse = new THREE.Vector2();
 }
 
 function animate() {
@@ -35,55 +46,157 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-function addEvent() {
-  window.addEventListener(
-    "keydown",
-    event => {
-      if (event.code == "Space") randomShuffle(20);
-    },
-    false
-  );
+function onKeyDown(event) {
+  switch (event.code) {
+    case 'Space':
+      randomShuffle(20);
+      break;
+  }
+}
 
-  let shakeThreshold = 2000;
-  let lastUpdate = 0,
-    lastX = 0,
-    lastY = 0,
-    lastZ = 0;
-  window.addEventListener(
-    "devicemotion",
-    event => {
-      let acceleration = event.accelerationIncludingGravity;
-      let curTime = new Date().getTime();
+function onMouseMove(event) {
+  mouse.x = ((event.touches && event.touches[0]) || event).clientX / window.innerWidth * 2 - 1;
+  mouse.y = -((event.touches && event.touches[0]) || event).clientY / window.innerHeight * 2 + 1;
 
-      if (curTime - lastUpdate > 100) {
-        let x = acceleration.x;
-        let y = acceleration.y;
-        let z = acceleration.z;
+  if (!dragState || !enableDrag) return;
 
-        let speed =
-          Math.abs(x + y + z - lastX - lastY - lastZ) /
-          (curTime - lastUpdate) *
-          10000;
+  raycaster.setFromCamera(mouse, camera);
+  let direction = new THREE.Vector3();
+  direction.subVectors(raycaster.ray.direction, dragState.proj);
+  direction.multiplyScalar(camera.position.length());
 
-        if (speed > shakeThreshold) randomShuffle(20);
+  let rc = rubikCube.getRcOnFace(dragState.cube, dragState.face);
+  if (!rc || direction.length() < 1e-5) return;
 
-        lastX = x;
-        lastY = y;
-        lastZ = z;
-        lastUpdate = curTime;
+  const horizantalVectors = [
+    new THREE.Vector3(0, 0, -1),
+    new THREE.Vector3(0, 0, 1),
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(-1, 0, 0),
+  ];
+  let hvec = horizantalVectors[dragState.face];
+  let vvec = new THREE.Vector3();
+  vvec.crossVectors(dragState.norm, hvec);
+
+  switch (dragState.face) {
+    case 0:
+      let { r, c } = rc;
+      let h = direction.dot(hvec);
+      let v = direction.dot(vvec);
+      let face, layer, dir, hv;
+
+      if (!dragState.rotHv) dragState.rotHv = Math.abs(h) > Math.abs(v) ? 'h' : 'v';
+      if (dragState.rotHv == 'h') {
+        if (r < rubikCube.LAYER_COUNT) {
+          face = 2;
+          layer = r;
+          dir = h < 0 ? 1 : -1;
+        } else {
+          face = 3;
+          layer = rubikCube.ORDER - r - 1;
+          dir = h < 0 ? -1 : 1;
+        }
+      } else {
+        if (c < rubikCube.LAYER_COUNT) {
+          face = 4;
+          layer = c;
+          dir = v < 0 ? 1 : -1;
+        } else {
+          face = 5;
+          layer = rubikCube.ORDER - c - 1;
+          dir = v < 0 ? -1 : 1;
+        }
       }
-    },
-    false
-  );
+      if (dragState.rotFace == undefined) {
+        dragState.rotFace = face;
+        dragState.rotLayer = layer;
+        dragState.rotDir = dir;
+      }
+      dragState.angle = Math.abs(dragState.rotHv == 'h' ? h : v) * dragState.rotDir;
+      rubikCube.rotateScene(dragState.rotFace, [dragState.rotLayer], dragState.angle);
+      break;
+  }
+}
+
+function onMouseDown(event) {
+  if (event.button == 2 || dragState || !enableDrag) return;
+  onMouseMove(event);
+
+  raycaster.setFromCamera(mouse, camera);
+  let intersects = raycaster.intersectObjects(scene.children);
+  for (let int of intersects)
+    if (int.object.type == 'Mesh') {
+      dragState = {
+        proj: raycaster.ray.direction.clone(),
+        cube: int.object,
+        norm: int.face.normal.clone(),
+        face: Math.floor(int.faceIndex / 2),
+      };
+      controls.enableRotate = false;
+      controls.enableZoom = false;
+      controls.enablePan = false;
+      break;
+    }
+}
+
+function onMouseUp(event) {
+  if (dragState && dragState.rotFace !== undefined && enableDrag) {
+    let num = Math.round(dragState.angle / (Math.PI / 2));
+    let dstAngle = num * (Math.PI / 2);
+    let face = dragState.rotFace,
+      layers = [dragState.rotLayer],
+      dir = dragState.rotDir;
+    if (dstAngle) num = Math.abs(num) % 4;
+    rotation.start(face, layers, 0, dragState.angle, dstAngle, () =>
+      rubikCube.rotateModel(face, layers, dir, num)
+    );
+  }
+  controls.enableRotate = true;
+  controls.enableZoom = true;
+  controls.enablePan = true;
+  dragState = null;
+}
+
+function onDevicemotion(event) {
+  let acceleration = event.accelerationIncludingGravity;
+  let curTime = new Date().getTime();
+
+  if (curTime - lastAcc.t > 100) {
+    let x = acceleration.x;
+    let y = acceleration.y;
+    let z = acceleration.z;
+
+    let speed =
+      Math.abs(x + y + z - lastAcc.x - lastAcc.y - lastAcc.z) / (curTime - lastAcc.t) * 10000;
+
+    if (speed > 2000) randomShuffle(20);
+
+    lastAcc = { x, y, z, t: curTime };
+  }
+}
+
+function addEvent() {
+  window.addEventListener('keydown', onKeyDown, false);
+  window.addEventListener('mousedown', onMouseDown, false);
+  window.addEventListener('mouseup', onMouseUp, false);
+  window.addEventListener('touchstart', onMouseDown, false);
+  window.addEventListener('touchend', onMouseUp, false);
+  window.addEventListener('devicemotion', onDevicemotion, false);
+  dom.addEventListener('mousemove', onMouseMove, false);
+  dom.addEventListener('touchmove', onMouseMove, false);
 }
 
 async function randomShuffle(num) {
+  enableDrag = false;
   for (; num > 0; num--) {
     let face = Math.floor(Math.random() * 6);
     let dir = Math.random() > 0.5 ? 1 : -1;
     let layer = Math.floor(Math.random() * rubikCube.LAYER_COUNT);
     await rotation.start(face, [layer], dir);
   }
+  enableDrag = true;
 }
 
 $(document).ready(() => {
