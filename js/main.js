@@ -23,10 +23,8 @@ function init() {
   dom = renderer.domElement;
   document.body.appendChild(dom);
 
-  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls = new THREE.TrackballControls(camera, dom);
   controls.enableDamping = true;
-  controls.rotateSpeed = 0.05;
-  controls.dampingFactor = 0.1;
 
   stats = new Stats();
   document.body.appendChild(stats.dom);
@@ -58,6 +56,7 @@ function onMouseMove(event) {
   mouse.x = ((event.touches && event.touches[0]) || event).clientX / window.innerWidth * 2 - 1;
   mouse.y = -((event.touches && event.touches[0]) || event).clientY / window.innerHeight * 2 + 1;
 
+  event.preventDefault();
   if (!dragState || !enableDrag) return;
 
   raycaster.setFromCamera(mouse, camera);
@@ -112,9 +111,9 @@ function onMouseMove(event) {
       if (dragState.rotFace == undefined) {
         dragState.rotFace = face;
         dragState.rotLayer = layer;
-        dragState.rotDir = dir;
       }
-      dragState.angle = Math.abs(dragState.rotHv == 'h' ? h : v) * dragState.rotDir;
+      dragState.rotDir = dir;
+      dragState.angle = Math.abs(dragState.rotHv == 'h' ? h : v) * dir;
       rubikCube.rotateScene(dragState.rotFace, [dragState.rotLayer], dragState.angle);
       break;
   }
@@ -134,9 +133,7 @@ function onMouseDown(event) {
         norm: int.face.normal.clone(),
         face: Math.floor(int.faceIndex / 2),
       };
-      controls.enableRotate = false;
-      controls.enableZoom = false;
-      controls.enablePan = false;
+      controls.enabled = false;
       break;
     }
 }
@@ -153,9 +150,7 @@ function onMouseUp(event) {
       rubikCube.rotateModel(face, layers, dir, num)
     );
   }
-  controls.enableRotate = true;
-  controls.enableZoom = true;
-  controls.enablePan = true;
+  controls.enabled = true;
   dragState = null;
 }
 
@@ -179,13 +174,13 @@ function onDevicemotion(event) {
 
 function addEvent() {
   window.addEventListener('keydown', onKeyDown, false);
-  window.addEventListener('mousedown', onMouseDown, false);
-  window.addEventListener('mouseup', onMouseUp, false);
-  window.addEventListener('touchstart', onMouseDown, false);
-  window.addEventListener('touchend', onMouseUp, false);
   window.addEventListener('devicemotion', onDevicemotion, false);
-  dom.addEventListener('mousemove', onMouseMove, false);
-  dom.addEventListener('touchmove', onMouseMove, false);
+  document.addEventListener('mouseup', onMouseUp, false);
+  document.addEventListener('touchend', onMouseUp, false);
+  dom.addEventListener('mousedown', onMouseDown, false);
+  dom.addEventListener('touchstart', onMouseDown, false);
+  document.addEventListener('mousemove', onMouseMove, false);
+  document.addEventListener('touchmove', onMouseMove, false);
 }
 
 async function randomShuffle(num) {
