@@ -38,6 +38,7 @@ const RubikCube = function(_order) {
   var cubes = [];
   var faceToCube = [];
   var cubeIdToRc = [];
+  var onSwap = undefined;
   this.cubes = cubes;
 
   function getCubeId(x, y, z) {

@@ -20,8 +20,9 @@ const Solver4 = function(_rubikCube, _rotation) {
   function init() {
     _rubikCube.setOnSwap((fs, rs, cs, dir) => {
       let tmp = [];
-      for (let i = 0; i < 4; i++) tmp[(i + dir + 4) % 4] = { ...getFace(fs[i], rs[i], cs[i]) };
-      for (let i = 0; i < 4; i++) faces[getFaceId(fs[i], rs[i], cs[i])] = tmp[i];
+      for (let i = 0; i < 4; i++)
+        tmp[(i + dir + 4) % 4] = JSON.stringify(getFace(fs[i], rs[i], cs[i]));
+      for (let i = 0; i < 4; i++) faces[getFaceId(fs[i], rs[i], cs[i])] = JSON.parse(tmp[i]);
     });
 
     for (let i = 0; i < 6; i++)
