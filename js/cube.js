@@ -13,23 +13,26 @@ const RubikCube = function() {
 
   const INTERIOR_COLOR = '#333';
 
+  const TO_LOGIC_FACE = [1, 1, 3, 3, 4, 4, 5, 5, 0, 0, 2, 2];
+  const TO_VISION_FACE = [8, 0, 10, 2, 4, 6];
+
   const FACE_COLOR = [
+    'rgb(42, 196, 75)', // Front, green
     'rgb(240, 48, 49)', // Right, red
+    'rgb(53, 94, 229)', // Back, blue
     'rgb(197, 117, 22)', // Left, orange
     'rgb(235, 235, 235)', // Up, white
     'rgb(216, 216, 31)', // Down, yellow
-    'rgb(42, 196, 75)', // Front, green
-    'rgb(53, 94, 229)', // Back, blue
   ];
 
-  // u,d,l,r
+  // l,u,r,d
   const ADJ_FACE = [
-    [2, 3, 4, 5], // Right
-    [2, 3, 5, 4], // Left
-    [5, 4, 1, 0], // Up
-    [4, 5, 1, 0], // Down
-    [2, 3, 1, 0], // Front
-    [2, 3, 0, 1], // Back
+    [3, 4, 1, 5], // Front
+    [0, 4, 2, 5], // Right
+    [1, 4, 3, 5], // Back
+    [2, 4, 0, 5], // Left
+    [3, 2, 1, 0], // Up
+    [3, 0, 1, 2], // Down
   ];
 
   var cubes = [];
@@ -50,9 +53,17 @@ const RubikCube = function() {
   };
 
   this.getAdjFace = (face, dir) => {
-    let d = { u: 0, d: 1, l: 2, r: 3 }[dir];
+    let d = { l: 0, u: 1, r: 2, d: 3 }[dir];
     if (d == undefined) d = dir;
     return ADJ_FACE[face][d];
+  };
+
+  this.toLogicFace = index => {
+    return TO_LOGIC_FACE[index];
+  };
+
+  this.toVisionFace = face => {
+    return TO_VISION_FACE[face];
   };
 
   function calcFaceToCube(x, y, z) {
@@ -61,34 +72,34 @@ const RubikCube = function() {
 
       switch (face) {
         case 0:
-          layer = ORDER - 1 - x;
-          r = ORDER - y - 1;
-          c = ORDER - z - 1;
-          break;
-        case 1:
-          layer = x;
-          r = ORDER - y - 1;
-          c = z;
-          break;
-        case 2:
-          layer = ORDER - 1 - y;
-          r = z;
-          c = x;
-          break;
-        case 3:
-          layer = y;
-          r = ORDER - z - 1;
-          c = x;
-          break;
-        case 4:
           layer = ORDER - 1 - z;
           r = ORDER - y - 1;
           c = x;
           break;
-        case 5:
+        case 1:
+          layer = ORDER - 1 - x;
+          r = ORDER - y - 1;
+          c = ORDER - z - 1;
+          break;
+        case 2:
           layer = z;
           r = ORDER - y - 1;
           c = ORDER - x - 1;
+          break;
+        case 3:
+          layer = x;
+          r = ORDER - y - 1;
+          c = z;
+          break;
+        case 4:
+          layer = ORDER - 1 - y;
+          r = z;
+          c = x;
+          break;
+        case 5:
+          layer = y;
+          r = ORDER - z - 1;
+          c = x;
           break;
       }
 
@@ -127,14 +138,14 @@ const RubikCube = function() {
             let size = SUB_SIZE - SEPARATOR_WIDTH;
             let cubeGeo = new THREE.BoxGeometry(size, size, size);
             cubeGeo.faces.forEach((face, index) => {
-              let id = Math.floor(index / 2);
+              let id = TO_LOGIC_FACE[index];
               let color =
-                (id == 0 && i == ORDER - 1) ||
-                (id == 1 && i == 0) ||
-                (id == 2 && j == ORDER - 1) ||
-                (id == 3 && j == 0) ||
-                (id == 4 && k == ORDER - 1) ||
-                (id == 5 && k == 0)
+                (id == 0 && k == ORDER - 1) ||
+                (id == 1 && i == ORDER - 1) ||
+                (id == 2 && k == 0) ||
+                (id == 3 && i == 0) ||
+                (id == 4 && j == ORDER - 1) ||
+                (id == 5 && j == 0)
                   ? FACE_COLOR[id]
                   : INTERIOR_COLOR;
               face.color = new THREE.Color(color);
@@ -188,26 +199,10 @@ const RubikCube = function() {
           for (let j = 0; j < ORDER; j++) {
             let id = faceToCube[getFaceId(face, l, i, j)];
             if (!cubes[id]) continue;
-            switch (face) {
-              case 0:
-                cubes[id].rotation.x = -angle;
-                break;
-              case 1:
-                cubes[id].rotation.x = angle;
-                break;
-              case 2:
-                cubes[id].rotation.y = -angle;
-                break;
-              case 3:
-                cubes[id].rotation.y = angle;
-                break;
-              case 4:
-                cubes[id].rotation.z = -angle;
-                break;
-              case 5:
-                cubes[id].rotation.z = angle;
-                break;
-            }
+
+            let rotVec = cubes[id].geometry.faces[TO_VISION_FACE[face]].normal.clone();
+            rotVec.multiplyScalar(-angle);
+            cubes[id].rotation.setFromVector3(rotVec);
           }
   };
 
@@ -215,13 +210,15 @@ const RubikCube = function() {
     let tmp = [];
     for (let i = 0; i < 4; i++) {
       let id = faceToCube[getFaceId(fs[i], 0, rs[i], cs[i])];
-      tmp[(i + dir + 4) % 4] = cubes[id].geometry.faces[fs[i] * 2].color.clone();
+      tmp[(i + dir + 4) % 4] = cubes[id].geometry.faces[TO_VISION_FACE[fs[i]]].color.clone();
     }
     for (let i = 0; i < 4; i++) {
       let id = faceToCube[getFaceId(fs[i], 0, rs[i], cs[i])];
       cubes[id].geometry.colorsNeedUpdate = true;
-      for (let j = 0; j < 2; j++) cubes[id].geometry.faces[fs[i] * 2 + j].color.set(tmp[i]);
+      for (let j = 0; j < 2; j++)
+        cubes[id].geometry.faces[TO_VISION_FACE[fs[i]] + j].color.set(tmp[i]);
     }
+    this.onSwap && this.onSwap(fs, rs, cs, dir);
   }
 
   function rotateFace(face, dir) {
@@ -245,46 +242,34 @@ const RubikCube = function() {
         for (; num > 0; num--) {
           if (l == 0) rotateFace(face, dir);
           for (i = 0; i < ORDER; i++) {
+            let rs, cs;
             switch (face) {
               case 0:
-                swapFace4(
-                  [4, 2, 5, 3],
-                  [ORDER - i - 1, ORDER - i - 1, i, ORDER - i - 1],
-                  [ORDER - l - 1, ORDER - l - 1, l, ORDER - l - 1],
-                  dir
-                );
+                rs = [ORDER - i - 1, ORDER - l - 1, i, l];
+                cs = [ORDER - l - 1, i, l, ORDER - i - 1];
                 break;
               case 1:
-                swapFace4([5, 2, 4, 3], [ORDER - i - 1, i, i, i], [ORDER - l - 1, l, l, l], dir);
+                rs = [ORDER - i - 1, ORDER - i - 1, i, ORDER - i - 1];
+                cs = [ORDER - l - 1, ORDER - l - 1, l, ORDER - l - 1];
                 break;
               case 2:
-                swapFace4([1, 5, 0, 4], [l, l, l, l], [i, i, i, i], dir);
+                rs = [ORDER - i - 1, l, i, ORDER - l - 1];
+                cs = [ORDER - l - 1, ORDER - i - 1, l, i];
                 break;
               case 3:
-                swapFace4(
-                  [1, 4, 0, 5],
-                  [ORDER - l - 1, ORDER - l - 1, ORDER - l - 1, ORDER - l - 1],
-                  [i, i, i, i],
-                  dir
-                );
+                rs = [ORDER - i - 1, i, i, i];
+                cs = [ORDER - l - 1, l, l, l];
                 break;
               case 4:
-                swapFace4(
-                  [1, 2, 0, 3],
-                  [ORDER - i - 1, ORDER - l - 1, i, l],
-                  [ORDER - l - 1, i, l, ORDER - i - 1],
-                  dir
-                );
+                rs = [l, l, l, l];
+                cs = [i, i, i, i];
                 break;
               case 5:
-                swapFace4(
-                  [0, 2, 1, 3],
-                  [ORDER - i - 1, l, i, ORDER - l - 1],
-                  [ORDER - l - 1, ORDER - i - 1, l, i],
-                  dir
-                );
+                rs = [ORDER - l - 1, ORDER - l - 1, ORDER - l - 1, ORDER - l - 1];
+                cs = [i, i, i, i];
                 break;
             }
+            swapFace4(ADJ_FACE[face], rs, cs, dir);
           }
         }
   };

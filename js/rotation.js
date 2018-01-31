@@ -46,26 +46,16 @@ const Rotation = function(_onRotate, _onRotateStop) {
   };
 
   this.onKeyDown = event => {
-    switch (event.code) {
-      case 'KeyR':
-        this.start(0, [event.ctrlKey ? 1 : 0], event.shiftKey ? -1 : 1);
-        break;
-      case 'KeyL':
-        this.start(1, [event.ctrlKey ? 1 : 0], event.shiftKey ? -1 : 1);
-        break;
-      case 'KeyU':
-        this.start(2, [event.ctrlKey ? 1 : 0], event.shiftKey ? -1 : 1);
-        break;
-      case 'KeyD':
-        this.start(3, [event.ctrlKey ? 1 : 0], event.shiftKey ? -1 : 1);
-        break;
-      case 'KeyF':
-        this.start(4, [event.ctrlKey ? 1 : 0], event.shiftKey ? -1 : 1);
-        break;
-      case 'KeyB':
-        this.start(5, [event.ctrlKey ? 1 : 0], event.shiftKey ? -1 : 1);
-        break;
-    }
+    const key2face = {
+      KeyF: 0,
+      KeyR: 1,
+      KeyB: 2,
+      KeyL: 3,
+      KeyU: 4,
+      KeyD: 5,
+    };
+    if (key2face[event.code] !== undefined)
+      this.start(key2face[event.code], [event.ctrlKey ? 1 : 0], event.shiftKey ? -1 : 1);
   };
 
   window.addEventListener('keydown', this.onKeyDown, false);

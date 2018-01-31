@@ -70,12 +70,12 @@ function onMouseMove(event) {
   if (!rc) return;
 
   const horizantalVectors = [
+    new THREE.Vector3(1, 0, 0),
     new THREE.Vector3(0, 0, -1),
+    new THREE.Vector3(-1, 0, 0),
     new THREE.Vector3(0, 0, 1),
     new THREE.Vector3(1, 0, 0),
     new THREE.Vector3(1, 0, 0),
-    new THREE.Vector3(1, 0, 0),
-    new THREE.Vector3(-1, 0, 0),
   ];
   let hvec = horizantalVectors[f];
   let vvec = new THREE.Vector3();
@@ -127,7 +127,7 @@ function onMouseDown(event) {
   for (let int of intersects)
     if (int.object.type == 'Mesh') {
       let cube = int.object;
-      let face = Math.floor(int.faceIndex / 2);
+      let face = rubikCube.toLogicFace(int.faceIndex);
       if (!rubikCube.getRcOnFace(cube, face)) break;
       dragState = {
         proj: raycaster.ray.direction.clone(),
