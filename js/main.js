@@ -1,6 +1,6 @@
 var camera, scene, renderer, raycaster, controls;
 var stats, mouse, rotation, stats, dom;
-var rubikCube;
+var rubikCube, solver;
 var lastAcc = { x: 0, y: 0, z: 0, t: 0 };
 var dragState = null;
 var enableDrag = true;
@@ -30,10 +30,12 @@ function init() {
   stats = new Stats();
   document.body.appendChild(stats.dom);
 
-  rubikCube = new RubikCube();
+  rubikCube = new RubikCube(4);
   rubikCube.createScene(scene);
 
   rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
+
+  solver = new Solver4(rubikCube, rotation);
 
   mouse = new THREE.Vector2();
 }
@@ -49,6 +51,9 @@ function onKeyDown(event) {
   switch (event.code) {
     case 'Space':
       randomShuffle();
+      break;
+    case 'Enter':
+      solve();
       break;
   }
 }
@@ -206,6 +211,17 @@ async function randomShuffle(num) {
     let layer = Math.floor(Math.random() * rubikCube.LAYER_COUNT);
     await rotation.start(face, [layer], dir);
   }
+  enableDrag = true;
+}
+
+async function solve() {
+  if (!solver.stopped) {
+    solver.stop();
+    return;
+  }
+  if (rotation.rotating || dragState) return;
+  enableDrag = false;
+  await solver.solve();
   enableDrag = true;
 }
 

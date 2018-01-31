@@ -1,5 +1,5 @@
-const RubikCube = function() {
-  const ORDER = 4;
+const RubikCube = function(_order) {
+  const ORDER = _order;
   this.ORDER = ORDER;
 
   const LAYER_COUNT = Math.ceil(ORDER / 2);
@@ -48,6 +48,10 @@ const RubikCube = function() {
     return ((face * LAYER_COUNT + layer) * ORDER + r) * ORDER + c;
   }
 
+  this.getCubeIdByFace = (face, layer, r, c) => {
+    return faceToCube[getFaceId(face, layer, r, c)];
+  };
+
   this.getRcOnFace = (cube, face) => {
     return cubeIdToRc[cube.cubeId * 6 + face];
   };
@@ -65,6 +69,8 @@ const RubikCube = function() {
   this.toVisionFace = face => {
     return TO_VISION_FACE[face];
   };
+
+  this.setOnSwap = func => (onSwap = func);
 
   function calcFaceToCube(x, y, z) {
     for (let face = 0; face < 6; face++) {
@@ -218,7 +224,7 @@ const RubikCube = function() {
       for (let j = 0; j < 2; j++)
         cubes[id].geometry.faces[TO_VISION_FACE[fs[i]] + j].color.set(tmp[i]);
     }
-    this.onSwap && this.onSwap(fs, rs, cs, dir);
+    onSwap && onSwap(fs, rs, cs, dir);
   }
 
   function rotateFace(face, dir) {
