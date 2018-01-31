@@ -4,6 +4,7 @@ var rubikCube;
 var lastAcc = { x: 0, y: 0, z: 0, t: 0 };
 var dragState = null;
 var enableDrag = true;
+var stopShuffle = true;
 
 function init() {
   let w = window.innerWidth,
@@ -47,7 +48,7 @@ function animate() {
 function onKeyDown(event) {
   switch (event.code) {
     case 'Space':
-      randomShuffle(20);
+      randomShuffle();
       break;
   }
 }
@@ -188,8 +189,18 @@ function addEvent() {
 }
 
 async function randomShuffle(num) {
+  if (!stopShuffle) {
+    stopShuffle = true;
+    return;
+  }
+  if (rotation.rotating || dragState) return;
   enableDrag = false;
-  for (; num > 0; num--) {
+  stopShuffle = false;
+  while (true) {
+    if (num !== undefined) {
+      if (num === 0) break;
+      num--;
+    } else if (stopShuffle) break;
     let face = Math.floor(Math.random() * 6);
     let dir = Math.random() > 0.5 ? 1 : -1;
     let layer = Math.floor(Math.random() * rubikCube.LAYER_COUNT);
