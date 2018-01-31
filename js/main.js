@@ -24,6 +24,7 @@ function init() {
   document.body.appendChild(dom);
 
   controls = new THREE.TrackballControls(camera, dom);
+  controls.noPan = true;
 
   stats = new Stats();
   document.body.appendChild(stats.dom);
@@ -63,8 +64,9 @@ function onMouseMove(event) {
   direction.subVectors(raycaster.ray.direction, dragState.proj);
   direction.multiplyScalar(camera.position.length());
 
-  let rc = rubikCube.getRcOnFace(dragState.cube, dragState.face);
-  if (!rc || direction.length() < 1e-5) return;
+  let f = dragState.face;
+  let rc = rubikCube.getRcOnFace(dragState.cube, f);
+  if (!rc) return;
 
   const horizantalVectors = [
     new THREE.Vector3(0, 0, -1),
@@ -74,48 +76,45 @@ function onMouseMove(event) {
     new THREE.Vector3(1, 0, 0),
     new THREE.Vector3(-1, 0, 0),
   ];
-  let hvec = horizantalVectors[dragState.face];
+  let hvec = horizantalVectors[f];
   let vvec = new THREE.Vector3();
   vvec.crossVectors(dragState.norm, hvec);
 
-  switch (dragState.face) {
-    case 0:
-      let { r, c } = rc;
-      let h = direction.dot(hvec);
-      let v = direction.dot(vvec);
-      let face, layer, dir, hv;
+  let { r, c } = rc;
+  let h = direction.dot(hvec);
+  let v = direction.dot(vvec);
+  let face, layer, dir, hv;
+  if (h * h + v * v < 1e-2) return;
 
-      if (!dragState.rotHv) dragState.rotHv = Math.abs(h) > Math.abs(v) ? 'h' : 'v';
-      if (dragState.rotHv == 'h') {
-        if (r < rubikCube.LAYER_COUNT) {
-          face = 2;
-          layer = r;
-          dir = h < 0 ? 1 : -1;
-        } else {
-          face = 3;
-          layer = rubikCube.ORDER - r - 1;
-          dir = h < 0 ? -1 : 1;
-        }
-      } else {
-        if (c < rubikCube.LAYER_COUNT) {
-          face = 4;
-          layer = c;
-          dir = v < 0 ? 1 : -1;
-        } else {
-          face = 5;
-          layer = rubikCube.ORDER - c - 1;
-          dir = v < 0 ? -1 : 1;
-        }
-      }
-      if (dragState.rotFace == undefined) {
-        dragState.rotFace = face;
-        dragState.rotLayer = layer;
-      }
-      dragState.rotDir = dir;
-      dragState.angle = Math.abs(dragState.rotHv == 'h' ? h : v) * dir;
-      rubikCube.rotateScene(dragState.rotFace, [dragState.rotLayer], dragState.angle);
-      break;
+  if (!dragState.rotHv) dragState.rotHv = Math.abs(h) > Math.abs(v) ? 'h' : 'v';
+  if (dragState.rotHv == 'h') {
+    if (r < rubikCube.LAYER_COUNT) {
+      face = rubikCube.getAdjFace(f, 'u');
+      layer = r;
+      dir = h < 0 ? 1 : -1;
+    } else {
+      face = rubikCube.getAdjFace(f, 'd');
+      layer = rubikCube.ORDER - r - 1;
+      dir = h < 0 ? -1 : 1;
+    }
+  } else {
+    if (c < rubikCube.LAYER_COUNT) {
+      face = rubikCube.getAdjFace(f, 'l');
+      layer = c;
+      dir = v < 0 ? 1 : -1;
+    } else {
+      face = rubikCube.getAdjFace(f, 'r');
+      layer = rubikCube.ORDER - c - 1;
+      dir = v < 0 ? -1 : 1;
+    }
   }
+  if (dragState.rotFace == undefined) {
+    dragState.rotFace = face;
+    dragState.rotLayer = layer;
+  }
+  dragState.rotDir = dir;
+  dragState.angle = Math.abs(dragState.rotHv == 'h' ? h : v) * dir;
+  rubikCube.rotateScene(dragState.rotFace, [dragState.rotLayer], dragState.angle);
 }
 
 function onMouseDown(event) {

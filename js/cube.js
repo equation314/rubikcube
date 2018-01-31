@@ -22,6 +22,16 @@ const RubikCube = function() {
     'rgb(53, 94, 229)', // Back, blue
   ];
 
+  // u,d,l,r
+  const ADJ_FACE = [
+    [2, 3, 4, 5], // Right
+    [2, 3, 5, 4], // Left
+    [5, 4, 1, 0], // Up
+    [4, 5, 1, 0], // Down
+    [2, 3, 1, 0], // Front
+    [2, 3, 0, 1], // Back
+  ];
+
   var cubes = [];
   var faceToCube = [];
   var cubeIdToRc = [];
@@ -37,6 +47,12 @@ const RubikCube = function() {
 
   this.getRcOnFace = (cube, face) => {
     return cubeIdToRc[cube.cubeId * 6 + face];
+  };
+
+  this.getAdjFace = (face, dir) => {
+    let d = { u: 0, d: 1, l: 2, r: 3 }[dir];
+    if (d == undefined) d = dir;
+    return ADJ_FACE[face][d];
   };
 
   function calcFaceToCube(x, y, z) {
