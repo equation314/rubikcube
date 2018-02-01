@@ -30,7 +30,7 @@ function init() {
   stats = new Stats();
   document.body.appendChild(stats.dom);
 
-  rubikCube = new RubikCube(5);
+  rubikCube = new RubikCube(4);
   rubikCube.createScene(scene);
 
   rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
