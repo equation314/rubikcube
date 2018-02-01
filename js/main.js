@@ -34,6 +34,7 @@ function init() {
   rubikCube.createScene(scene);
 
   rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
+  rotation.rotationSpeed = 1;
 
   solver = new Solver4(rubikCube, rotation);
 
@@ -44,6 +45,7 @@ function animate() {
   requestAnimationFrame(animate);
   controls.update();
   stats.update();
+  rotation.update();
   renderer.render(scene, camera);
 }
 
