@@ -1,6 +1,7 @@
 const Solver4 = function(_rubikCube, _rotation) {
   const ORDER = _rubikCube.ORDER;
-  const CENTER_COUNT = (ORDER - 2) * (ORDER - 2);
+  const EDGE_LENGHT = ORDER - 2;
+  const CENTER_COUNT = EDGE_LENGHT * EDGE_LENGHT;
 
   // [track, toword, offset]
   const TRACK_INFO = [
@@ -32,10 +33,13 @@ const Solver4 = function(_rubikCube, _rotation) {
   var INV_TRACK_INFO = [];
 
   var faces = [];
+  var edgeToFace = [];
   var frontFace = 0;
   var topFace = 4;
 
-  this.stopped = true;
+  var stopped = true;
+
+  this.getAdjFace = _rubikCube.getAdjFace;
 
   init();
 
@@ -63,6 +67,12 @@ const Solver4 = function(_rubikCube, _rotation) {
     else return (face + 2) % 4;
   }
 
+  // 获取 pair 个棱块对上第 index 个棱块的 face 面的颜色
+  function getEdgeColor(pair, index, face) {
+    let faceId = edgeToFace[pair * EDGE_LENGHT + index][face];
+    return faces[faceId].color;
+  }
+
   function init() {
     _rubikCube.setOnSwap((fs, rs, cs, dir) => {
       let tmp = [];
@@ -76,7 +86,7 @@ const Solver4 = function(_rubikCube, _rotation) {
         for (let k = 0; k < ORDER; k++)
           faces[getFaceId(i, j, k)] = { color: i, id: _rubikCube.getCubeIdByFace(i, 0, j, k) };
 
-    if (ORDER == 4)
+    if (ORDER == 4) {
       for (let f = 0; f < 6; f++)
         for (let r = 0; r < 2; r++)
           for (let c = 0; c < 2; c++)
@@ -84,6 +94,36 @@ const Solver4 = function(_rubikCube, _rotation) {
               let t = TRACK_INFO[(f * 2 + r) * 2 + c][i];
               INV_TRACK_INFO[(t[0] * 4 + t[1]) * 2 + t[2]] = getFaceId(f, r + 1, c + 1);
             }
+
+      for (let i = 0; i < EDGE_LENGHT; i++) {
+        for (let j = 0; j < 4; j++) {
+          const rcs = [
+            [ORDER - 1, i + 1],
+            [ORDER - i - 2, ORDER - 1],
+            [0, ORDER - i - 2],
+            [i + 1, 0],
+          ];
+
+          // up
+          edgeToFace[j * EDGE_LENGHT + i] = [
+            getFaceId(4, rcs[j][0], rcs[j][1]),
+            getFaceId(j, 0, i + 1),
+          ];
+
+          // down
+          edgeToFace[(j + 4) * EDGE_LENGHT + i] = [
+            getFaceId(5, rcs[(j + 2) % 4][0], rcs[j][1]),
+            getFaceId(j, ORDER - 1, i + 1),
+          ];
+
+          // around
+          edgeToFace[(j + 8) * EDGE_LENGHT + i] = [
+            getFaceId(j, i + 1, ORDER - 1),
+            getFaceId((j + 1) % 4, i + 1, 0),
+          ];
+        }
+      }
+    }
   }
 
   // 当前视角下(topFace 面在上, frontFace 面在前)，顺时针旋转 face 面的 layers 层 dir 次
@@ -103,7 +143,7 @@ const Solver4 = function(_rubikCube, _rotation) {
       face = topFace; // U
     else face = topFace ^ 1; // D
 
-    for (; num > 0 && !this.stopped; num--) await _rotation.start(face, layers, dir);
+    for (; num > 0 && !stopped; num--) await _rotation.start(face, layers, dir);
   }
 
   async function forEachCenter(callback) {
@@ -153,8 +193,8 @@ const Solver4 = function(_rubikCube, _rotation) {
   // 同一面中变轨，转的方向
   function getChangeTrackDircetion(face, r, c, track) {
     let isVerticalTrack =
-      TRACK_INFO[face * 4][0][0] == track || TRACK_INFO[face * 4 + 1][0][0] == track;
-    return ((r + c - 2) % 2 == 0) ^ isVerticalTrack ? -1 : 1;
+      TRACK_INFO[face * 4][0][0] === track || TRACK_INFO[face * 4 + 1][0][0] === track;
+    return ((r + c - 2) % 2 === 0) ^ isVerticalTrack ? -1 : 1;
   }
 
   // 同一面同一轨道中变位置
@@ -164,47 +204,93 @@ const Solver4 = function(_rubikCube, _rotation) {
 
   // 将中心块 (f1,r1,c1) 移到 (f2,r2,c2)
   async function moveOneCenterTo(f1, r1, c1, f2, r2, c2) {
-    if (this.stopped) return;
+    if (stopped) return;
 
     let t1 = getTrackInfo(f1, r1, c1),
       t2 = getTrackInfo(f2, r2, c2);
     for (let i of t1)
       for (let j of t2)
-        if (i[0] == j[0] || getOppositeFace(i[0]) == j[0]) {
+        if (i[0] === j[0] || getOppositeFace(i[0]) === j[0]) {
           t1 = i;
           t2 = j;
           break;
         }
 
     let changedDir = 1;
-    if (t1[0] == t2[0]) {
+    if (t1[0] === t2[0]) {
       await _(f1, [0], getChangeTrackDircetion(f1, r1, c1, t1[0]));
       changedDir = -changedDir;
     }
-    if ((getFaceByTrack(t2[0], t2[1], t2[2] ^ 1).color == f2) ^ (t1[2] != t2[2])) {
+    if ((getFaceByTrack(t2[0], t2[1], t2[2] ^ 1).color === f2) ^ (t1[2] !== t2[2])) {
       await _(f1, [0], getChangeOffsetDircetion(f1, r1, c1, t1[0]) * changedDir);
       changedDir = -changedDir;
     }
 
-    let dir = t1[0] == t2[0] ? t1[1] - t2[1] : (4 - t1[1]) % 4 - t2[1];
+    let dir = t1[0] === t2[0] ? t1[1] - t2[1] : (4 - t1[1]) % 4 - t2[1];
     await _(t2[0], [1], dir);
     await _(f1, [0], getChangeTrackDircetion(f1, r1, c1, t1[0]) * changedDir);
     await _(t2[0], [1], -dir);
   }
 
+  // 将一对棱块移到前面
+  async function moveEdgePairToFront(pair, position = 'up') {
+    if (stopped) return;
+
+    let dir;
+    if (pair < 8) {
+      // on up or down
+      if (pair < 4 && position == 'down') await _(pair, [0], 2);
+      else if (pair >= 4 && position == 'up') await _(pair - 4, [0], 2);
+      dir = pair % 4;
+    } else {
+      // around
+      switch (pair) {
+        case 8:
+          await _(1, [0], position == 'up' ? 1 : -1);
+          dir = 1;
+          break;
+        case 9:
+          await _(1, [0], position == 'up' ? -1 : 1);
+          dir = 1;
+          break;
+        case 10:
+          await _(3, [0], position == 'up' ? 1 : -1);
+          dir = 3;
+          break;
+        case 11:
+          await _(3, [0], position == 'up' ? -1 : 1);
+          dir = 3;
+          break;
+      }
+    }
+
+    if (position == 'up') await _(4, [0], dir);
+    else await _(5, [0], -dir);
+  }
+
+  // 检查棱块对是否完整
+  function checkEdgePair(pair) {
+    let c1 = getEdgeColor(pair, 0, 0),
+      c2 = getEdgeColor(pair, 0, 1);
+
+    for (let j = 1; j < EDGE_LENGHT; j++)
+      if (getEdgeColor(pair, j, 0) !== c1 || getEdgeColor(pair, j, 1) !== c2) return false;
+    return true;
+  }
+
   async function solveCenters() {
-    if (this.stopped) return;
+    if (stopped) return;
 
     const seq = [4, 5, 0, 1, 2, 3];
     let fuck = false;
     for (face of seq)
-      if (!this.stopped)
+      if (!stopped)
         await forEachCenter(async (r, c) => {
-          if (getFace(face, r, c).color != face) {
+          if (getFace(face, r, c).color !== face) {
             for (let i = 0; i < 6; i++)
-              if (i != face)
+              if (i !== face)
                 await forEachCenter(async (j, k) => {
-                  if (getFace(i, j, k).color == face) {
+                  if (getFace(i, j, k).color === face) {
                     await moveOneCenterTo(i, j, k, face, r, c);
                   }
                 });
@@ -213,43 +299,80 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveEdges() {
-    if (this.stopped) return;
+    if (stopped) return;
+
+    let found = true;
+    while (found && !stopped) {
+      found = false;
+      for (let i = 0; i < 12; i++)
+        if (!found && !stopped && !checkEdgePair(i)) {
+          await moveEdgePairToFront(i, 'up');
+
+          let c1 = getFace(0, 0, 1).color,
+            c2 = getFace(4, ORDER - 1, 1).color;
+          for (let j = 1; j < 12; j++)
+            for (let k = 0; k < EDGE_LENGHT; k++) {
+              let c3 = getEdgeColor(j, k, 0),
+                c4 = getEdgeColor(j, k, 1);
+              if (((c1 === c3 && c2 === c4) || (c1 === c4 && c2 === c3)) && !found) {
+                found = true;
+                await moveEdgePairToFront(j, 'down');
+
+                if (getFace(5, 0, 2).color === c1 && getFace(0, ORDER - 1, 2).color === c2) {
+                  await _(4, [0], 1); // U
+                  await _(0, [0], -1); // F'
+                  await _(3, [0], 1); // L
+                  await _(0, [0], -1); // F'
+                }
+                await _(1, [1], 1); // MR
+                await _(4, [0], -1); // U'
+                await _(0, [0], 1); // F
+                await _(1, [0], -1); // R'
+                await _(4, [0], 1); // U
+                await _(0, [0], -1); // F'
+                await _(1, [1], -1); // MR'
+              }
+            }
+        }
+    }
   }
 
   async function solveTopCross() {
-    if (this.stopped) return;
+    if (stopped) return;
   }
 
   async function solveTopCorners() {
-    if (this.stopped) return;
+    if (stopped) return;
   }
 
   async function solveMiddleLayer() {
-    if (this.stopped) return;
+    if (stopped) return;
   }
 
   async function solveBottomCross() {
-    if (this.stopped) return;
+    if (stopped) return;
   }
 
   async function solveBottomFace() {
-    if (this.stopped) return;
+    if (stopped) return;
   }
 
   async function solveBottomCorners() {
-    if (this.stopped) return;
+    if (stopped) return;
   }
 
   async function solveBottomEdges() {
-    if (this.stopped) return;
+    if (stopped) return;
   }
 
+  this.isStopped = () => stopped;
+
   this.stop = () => {
-    this.stopped = true;
+    stopped = true;
   };
 
   this.solve = async () => {
-    this.stopped = false;
+    stopped = false;
     await solveCenters();
     await solveEdges();
     await solveTopCross();
@@ -259,6 +382,6 @@ const Solver4 = function(_rubikCube, _rotation) {
     await solveBottomFace();
     await solveBottomCorners();
     await solveBottomEdges();
-    this.stopped = true;
+    this.stop();
   };
 };

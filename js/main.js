@@ -217,7 +217,7 @@ async function randomShuffle(num) {
 }
 
 async function solve() {
-  if (!solver.stopped) {
+  if (!solver.isStopped()) {
     solver.stop();
     return;
   }
