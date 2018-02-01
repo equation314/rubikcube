@@ -86,6 +86,35 @@ const Solver4 = function(_rubikCube, _rotation) {
         for (let k = 0; k < ORDER; k++)
           faces[getFaceId(i, j, k)] = { color: i, id: _rubikCube.getCubeIdByFace(i, 0, j, k) };
 
+    for (let i = 0; i < EDGE_LENGHT; i++) {
+      for (let j = 0; j < 4; j++) {
+        const rcs = [
+          [ORDER - 1, i + 1],
+          [ORDER - i - 2, ORDER - 1],
+          [0, ORDER - i - 2],
+          [i + 1, 0],
+        ];
+
+        // up
+        edgeToFace[j * EDGE_LENGHT + i] = [
+          getFaceId(4, rcs[j][0], rcs[j][1]),
+          getFaceId(j, 0, i + 1),
+        ];
+
+        // down
+        edgeToFace[(j + 4) * EDGE_LENGHT + i] = [
+          getFaceId(5, rcs[(j + 2) % 4][0], rcs[j][1]),
+          getFaceId(j, ORDER - 1, i + 1),
+        ];
+
+        // around
+        edgeToFace[(j + 8) * EDGE_LENGHT + i] = [
+          getFaceId(j, i + 1, ORDER - 1),
+          getFaceId((j + 1) % 4, i + 1, 0),
+        ];
+      }
+    }
+
     if (ORDER == 4) {
       for (let f = 0; f < 6; f++)
         for (let r = 0; r < 2; r++)
@@ -94,35 +123,6 @@ const Solver4 = function(_rubikCube, _rotation) {
               let t = TRACK_INFO[(f * 2 + r) * 2 + c][i];
               INV_TRACK_INFO[(t[0] * 4 + t[1]) * 2 + t[2]] = getFaceId(f, r + 1, c + 1);
             }
-
-      for (let i = 0; i < EDGE_LENGHT; i++) {
-        for (let j = 0; j < 4; j++) {
-          const rcs = [
-            [ORDER - 1, i + 1],
-            [ORDER - i - 2, ORDER - 1],
-            [0, ORDER - i - 2],
-            [i + 1, 0],
-          ];
-
-          // up
-          edgeToFace[j * EDGE_LENGHT + i] = [
-            getFaceId(4, rcs[j][0], rcs[j][1]),
-            getFaceId(j, 0, i + 1),
-          ];
-
-          // down
-          edgeToFace[(j + 4) * EDGE_LENGHT + i] = [
-            getFaceId(5, rcs[(j + 2) % 4][0], rcs[j][1]),
-            getFaceId(j, ORDER - 1, i + 1),
-          ];
-
-          // around
-          edgeToFace[(j + 8) * EDGE_LENGHT + i] = [
-            getFaceId(j, i + 1, ORDER - 1),
-            getFaceId((j + 1) % 4, i + 1, 0),
-          ];
-        }
-      }
     }
   }
 
@@ -281,6 +281,18 @@ const Solver4 = function(_rubikCube, _rotation) {
   async function solveCenters() {
     if (stopped) return;
 
+    if (ORDER == 3) {
+      for (let i = 0; i < 6; i++)
+        if (getFace(i, 1, 1).color == 4) {
+          if (i < 4) await _((i + 1) % 4, [1], 1);
+          else if (i == 5) await _(0, [1], 2);
+          break;
+        }
+
+      while (getFace(0, 1, 1).color !== 0) await _(4, [1], 1);
+      return;
+    }
+
     const seq = [4, 5, 0, 1, 2, 3];
     let fuck = false;
     for (face of seq)
@@ -314,7 +326,7 @@ const Solver4 = function(_rubikCube, _rotation) {
             for (let k = 0; k < EDGE_LENGHT; k++) {
               let c3 = getEdgeColor(j, k, 0),
                 c4 = getEdgeColor(j, k, 1);
-              if (((c1 === c3 && c2 === c4) || (c1 === c4 && c2 === c3)) && !found) {
+              if (((c1 === c3 && c2 === c4) || (c1 === c4 && c2 === c3)) && !found && !stopped) {
                 found = true;
                 await moveEdgePairToFront(j, 'down');
 
@@ -372,6 +384,11 @@ const Solver4 = function(_rubikCube, _rotation) {
   };
 
   this.solve = async () => {
+    if (ORDER > 4) {
+      alert('The maximum solveble order is 4!');
+      return;
+    }
+
     stopped = false;
     await solveCenters();
     await solveEdges();
