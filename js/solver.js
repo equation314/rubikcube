@@ -636,20 +636,18 @@ const Solver4 = function(_rubikCube, _rotation) {
     topFace = 5;
     frontFace = 0;
     let count = countEdgeColor(5, 5, 1);
+
     if (count == 4) return;
-    else if (count == 1 || count == 3) {
-      // 4 阶特殊情况
-      await formulaMagic();
+    else if (count == 1 || count == 3) await formulaMagic(); // 4 阶特殊情况
+
+    if (!count) await formula1();
+    if (getFace(5, 1, 0).color === 5 && getFace(5, 1, ORDER - 1).color === 5) await _(4, [0], 1);
+    if (getFace(5, 0, 1).color === 5 && getFace(5, ORDER - 1, 1).color === 5) {
+      await formula2();
     } else {
-      if (!count) await formula1();
-      if (getFace(5, 1, 0).color === 5 && getFace(5, 1, ORDER - 1).color === 5) await _(4, [0], 1);
-      if (getFace(5, 0, 1).color === 5 && getFace(5, ORDER - 1, 1).color === 5) {
-        await formula2();
-      } else {
-        while (!stopped && (getFace(5, 0, 1).color !== 5 || getFace(5, 1, 0).color !== 5))
-          await _(4, [0], 1);
-        await formula1();
-      }
+      while (!stopped && (getFace(5, 0, 1).color !== 5 || getFace(5, 1, 0).color !== 5))
+        await _(4, [0], 1);
+      await formula1();
     }
   }
 
