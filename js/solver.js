@@ -634,7 +634,7 @@ const Solver4 = function(_rubikCube, _rotation) {
     };
 
     topFace = 5;
-    frontFace = 0;
+    frontFace = 2;
     let count = countEdgeColor(5, 5, 1);
 
     if (count == 4) return;
