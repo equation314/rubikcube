@@ -707,7 +707,42 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveBottomEdges() {
-    if (stopped) return;
+    const formula = async () => {
+      await _(1, [0], 1); // R
+      await _(4, [0], -1); // U'
+      await _(1, [0], 1); // R
+      await _(4, [0], 1); // U
+      await _(1, [0], 1); // R
+      await _(4, [0], 1); // U
+      await _(1, [0], 1); // R
+      await _(4, [0], -1); // U'
+      await _(1, [0], -1); // R'
+      await _(4, [0], -1); // U'
+      await _(1, [0], 2); // R2
+    };
+
+    const formulaMagic = async () => {
+      await _(1, [1], 2); // MR2
+      await _(4, [0], 2); // U2
+      await _(1, [1], 2); // MR2
+      await _(4, [0, 1], 2); // TU2
+      await _(1, [1], 2); // MR2
+      await _(4, [1], 2); // MU2
+    };
+
+    while (!stopped) {
+      frontFace = 2;
+      let count = 0;
+      for (let i = 0; i < 4; i++)
+        if (getFace(i, ORDER - 1, 0).color === getFace(i, ORDER - 1, 1).color) {
+          frontFace = (i + 2) % 4;
+          count++;
+        }
+      if (count == 4) break;
+      else if (count == 2) await formulaMagic();
+      await formula();
+    }
+    while (!stopped && countEdgeColor(0, 0, 1) !== 4) await _(4, [0], 1);
   }
 
   this.isStopped = () => stopped;
