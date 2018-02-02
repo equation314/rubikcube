@@ -652,7 +652,33 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveBottomFace() {
+    const formula = async () => {
+      await _(3, [0], 1);
+      await _(4, [0], 1);
+      await _(3, [0], -1);
+      await _(4, [0], 1);
+      await _(3, [0], 1);
+      await _(4, [0], 2);
+      await _(3, [0], -1);
+    };
+
     if (stopped) return;
+    while (!stopped) {
+      let count = countCornerColor(5, 5);
+      if (count == 4) break;
+      else if (!count) {
+        for (let i = 0; i < 4; i++)
+          if (getFace(i, ORDER - 1, 0).color === 5) frontFace = (i + 1) % 4;
+      } else if (count == 2) {
+        for (let i = 0; i < 4; i++)
+          if (getFace(i, ORDER - 1, ORDER - 1).color === 5) frontFace = (i + 2) % 4;
+      } else {
+        forEachCorner((r, c, dir) => {
+          if (getFace(5, r, c).color === 5) frontFace = 3 - dir;
+        });
+      }
+      await formula();
+    }
   }
 
   async function solveBottomCorners() {
