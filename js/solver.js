@@ -32,14 +32,19 @@ const Solver4 = function(_rubikCube, _rotation) {
   ];
   var INV_TRACK_INFO = [];
 
+  const DIR_TO_RC = {
+    l: [1, 0],
+    u: [0, 1],
+    r: [1, ORDER - 1],
+    d: [ORDER - 1, 1],
+  };
+
   var faces = [];
   var edgeToFace = [];
   var frontFace = 0;
   var topFace = 4;
 
   var stopped = true;
-
-  this.getAdjFace = _rubikCube.getAdjFace;
 
   init();
 
@@ -71,6 +76,21 @@ const Solver4 = function(_rubikCube, _rotation) {
   function getEdgeColor(pair, index, face) {
     let faceId = edgeToFace[pair * EDGE_LENGHT + index][face];
     return faces[faceId].color;
+  }
+
+  // face 面 dir 方向相邻的面
+  function getAdjFace(face, dir) {
+    return _rubikCube.getAdjFace(face, dir);
+  }
+
+  // face 面 dir 方向棱块相邻的颜色
+  function getAdjColor(face, dir) {
+    let adjFace = getAdjFace(face, dir),
+      res;
+    forEachEdge((r, c, d) => {
+      if (getAdjFace(adjFace, d) === face) res = getFace(adjFace, r, c).color;
+    }, 1);
+    return res;
   }
 
   function init() {
@@ -128,6 +148,7 @@ const Solver4 = function(_rubikCube, _rotation) {
 
   // 当前视角下(topFace 面在上, frontFace 面在前)，顺时针旋转 face 面的 layers 层 dir 次
   async function _(face, layers, dir) {
+    // console.log(face, layers, dir);
     let num = Math.abs(dir);
     dir = dir / num;
     if (num == 3) {
@@ -146,27 +167,50 @@ const Solver4 = function(_rubikCube, _rotation) {
     for (; num > 0 && !stopped; num--) await _rotation.start(face, layers, dir);
   }
 
-  async function forEachCenter(callback) {
+  async function forEachCenterAsync(callback) {
     for (let i = 1; i < ORDER - 1; i++)
       for (let j = 1; j < ORDER - 1; j++) {
         await callback(i, j);
       }
   }
 
-  async function forEachEdge(callback) {
-    for (let i = 1; i < ORDER - 1; i++) {
-      await callback(0, i);
-      await callback(ORDER - 1, i);
-      await callback(i, 0);
-      await callback(i, ORDER - 1);
+  async function forEachEdgeAsync(callback, num = EDGE_LENGHT) {
+    for (let i = 1; i <= num; i++) {
+      await callback(i, 0, 'l');
+      await callback(0, i, 'u');
+      await callback(i, ORDER - 1, 'r');
+      await callback(ORDER - 1, i, 'd');
     }
   }
 
-  async function forEachCorner(callback) {
+  async function forEachCornerAsync(callback) {
     await callback(0, 0);
     await callback(0, ORDER - 1);
     await callback(ORDER - 1, 0);
     await callback(ORDER - 1, ORDER - 1);
+  }
+
+  function forEachCenter(callback) {
+    for (let i = 1; i < ORDER - 1; i++)
+      for (let j = 1; j < ORDER - 1; j++) {
+        callback(i, j);
+      }
+  }
+
+  function forEachEdge(callback, num = EDGE_LENGHT) {
+    for (let i = 1; i <= num; i++) {
+      callback(i, 0, 'l');
+      callback(0, i, 'u');
+      callback(i, ORDER - 1, 'r');
+      callback(ORDER - 1, i, 'd');
+    }
+  }
+
+  function forEachCorner(callback) {
+    callback(0, 0);
+    callback(0, ORDER - 1);
+    callback(ORDER - 1, 0);
+    callback(ORDER - 1, ORDER - 1);
   }
 
   // 统计 face 面上中心块颜色为 color 的个数
@@ -177,9 +221,9 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   // 统计 face 面上棱块颜色为 color 的个数
-  function countEdgeColor(face, color) {
+  function countEdgeColor(face, color, num = EDGE_LENGHT) {
     let s = 0;
-    forEachEdge((r, c) => (s += getFace(face, r, c).color === color));
+    forEachEdge((r, c) => (s += getFace(face, r, c).color === color), num);
     return s;
   }
 
@@ -278,6 +322,14 @@ const Solver4 = function(_rubikCube, _rotation) {
     return true;
   }
 
+  // 检查 face 面 dir 方向的棱块是否归位
+  function checkFaceEdge(face, dir) {
+    return (
+      getFace(face, DIR_TO_RC[dir][0], DIR_TO_RC[dir][1]).color === face &&
+      getAdjFace(face, dir) === getAdjColor(face, dir)
+    );
+  }
+
   async function solveCenters() {
     if (stopped) return;
 
@@ -297,11 +349,11 @@ const Solver4 = function(_rubikCube, _rotation) {
     let fuck = false;
     for (face of seq)
       if (!stopped)
-        await forEachCenter(async (r, c) => {
+        await forEachCenterAsync(async (r, c) => {
           if (getFace(face, r, c).color !== face) {
             for (let i = 0; i < 6; i++)
               if (i !== face)
-                await forEachCenter(async (j, k) => {
+                await forEachCenterAsync(async (j, k) => {
                   if (getFace(i, j, k).color === face) {
                     await moveOneCenterTo(i, j, k, face, r, c);
                   }
@@ -351,6 +403,56 @@ const Solver4 = function(_rubikCube, _rotation) {
 
   async function solveTopCross() {
     if (stopped) return;
+
+    while (
+      !stopped &&
+      (!checkFaceEdge(0, 'u') ||
+        !checkFaceEdge(1, 'u') ||
+        !checkFaceEdge(2, 'u') ||
+        !checkFaceEdge(3, 'u'))
+    ) {
+      // 底面白色棱块归位
+      while (countEdgeColor(5, 4, 1) > 0) {
+        await forEachEdgeAsync(async (r, c, dir) => {
+          if (getFace(5, r, c).color === 4) {
+            let adjFace = getAdjFace(5, dir),
+              bottomColor = getFace(adjFace, ORDER - 1, 1).color;
+            await _(5, [0], bottomColor - adjFace);
+            await _(bottomColor, [0], 2);
+          }
+        }, 1);
+      }
+
+      // 侧面白色棱块移到底面
+      for (let i = 0; i < 4; i++) {
+        // u, d
+        await forEachEdgeAsync(async (r, c, dir) => {
+          if (getFace(i, r, c).color === 4 && (dir === 'u' || dir === 'd')) {
+            if (checkFaceEdge(i, 'u')) await _(5, [0], 1);
+            else await _(i, [0], 1);
+          }
+        }, 1);
+        // l, r
+        await forEachEdgeAsync(async (r, c, dir) => {
+          if (getFace(i, r, c).color === 4 && (dir === 'l' || dir === 'r')) {
+            let adjFace = getAdjFace(i, dir);
+            if (getAdjColor(i, dir) == adjFace) await _(adjFace, [0], dir === 'l' ? -1 : 1);
+            else {
+              await _(adjFace, [0], dir === 'l' ? 1 : -1);
+              await _(5, [0], 1);
+              await _(adjFace, [0], dir === 'l' ? -1 : 1);
+            }
+          }
+        }, 1);
+      }
+
+      // 顶面错误白色棱块移到底面
+      await forEachEdgeAsync(async (r, c, dir) => {
+        if (getFace(4, r, c).color == 4 && !checkFaceEdge(4, dir)) {
+          await _(getAdjFace(4, dir), [0], 2);
+        }
+      }, 1);
+    }
   }
 
   async function solveTopCorners() {
