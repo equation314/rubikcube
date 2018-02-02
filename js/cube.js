@@ -246,8 +246,8 @@ const RubikCube = function(_order) {
   this.rotateModel = (face, layers, dir, num = 1) => {
     for (l of layers)
       if (l < LAYER_COUNT)
-        for (; num > 0; num--) {
-          if (l == 0) rotateFace(face, dir);
+        for (let t = 0; t < num; t++) {
+          if (l === 0) rotateFace(face, dir);
           for (i = 0; i < ORDER; i++) {
             let rs, cs;
             switch (face) {

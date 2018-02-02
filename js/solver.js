@@ -534,6 +534,17 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveMiddleLayer() {
+    const formula = async dir => {
+      await _(5, [0], -dir); // D'
+      await _(dir > 0 ? 1 : 3, [0], -dir); // R'
+      await _(5, [0], dir); // D
+      await _(dir > 0 ? 1 : 3, [0], dir); // R
+      await _(5, [0], dir); // D
+      await _(0, [0], dir); // F
+      await _(5, [0], -dir); // D'
+      await _(0, [0], -dir); // F'
+    };
+
     while (
       !stopped &&
       (!checkFaceEdge(0, 'l') ||
@@ -552,23 +563,9 @@ const Solver4 = function(_rubikCube, _rotation) {
           await _(5, [0], c1 - i); // 把当前面的i色转到面c
           frontFace = c1;
           if (c2 === (c1 + 1) % 4) {
-            await _(5, [0], -1); // D'
-            await _(1, [0], -1); // R'
-            await _(5, [0], 1); // D
-            await _(1, [0], 1); // R
-            await _(5, [0], 1); // D
-            await _(0, [0], 1); // F
-            await _(5, [0], -1); // D'
-            await _(0, [0], -1); // F'
+            await formula(1);
           } else {
-            await _(5, [0], 1); // D
-            await _(3, [0], 1); // L
-            await _(5, [0], -1); // D'
-            await _(3, [0], -1); // L'
-            await _(5, [0], -1); // D'
-            await _(0, [0], -1); // F'
-            await _(5, [0], 1); // D
-            await _(0, [0], 1); // F
+            await formula(-1);
           }
           frontFace = 0;
           found = true;
@@ -588,20 +585,72 @@ const Solver4 = function(_rubikCube, _rotation) {
           )
             await _(5, [0], 1);
           frontFace = i;
-          await _(5, [0], -1); // D'
-          await _(1, [0], -1); // R'
-          await _(5, [0], 1); // D
-          await _(1, [0], 1); // R
-          await _(5, [0], 1); // D
-          await _(0, [0], 1); // F
-          await _(5, [0], -1); // D'
-          await _(0, [0], -1); // F'
+          await formula(1);
         }
     }
   }
 
   async function solveBottomCross() {
     if (stopped) return;
+
+    const formula1 = async () => {
+      await _(1, [0], -1); // R'
+      await _(4, [0], -1); // U'
+      await _(0, [0], -1); // F'
+      await _(4, [0], 1); // U
+      await _(0, [0], 1); // F
+      await _(1, [0], 1); // R
+    };
+
+    const formula2 = async () => {
+      await _(1, [0], -1); // R'
+      await _(4, [0], -1); // U'
+      await _(0, [0], -1); // F'
+      await _(4, [0], 1); // U
+      await _(0, [0], 1); // F
+      await _(4, [0], -1); // U'
+      await _(0, [0], -1); // F'
+      await _(4, [0], 1); // U
+      await _(0, [0], 1); // F
+      await _(1, [0], 1); // R
+    };
+
+    const formulaMagic = async () => {
+      await _(1, [0, 1], 2); // TR2
+      await _(2, [0], 2); // B2
+      await _(4, [0], 2); // U2
+      await _(3, [0, 1], 1); // TL
+      await _(4, [0], 2); // U2
+      await _(1, [0, 1], -1); // TR'
+      await _(4, [0], 2); // U2
+      await _(1, [0, 1], 1); // TR
+      await _(4, [0], 2); // U2
+      await _(0, [0], 2); // F2
+      await _(1, [0, 1], 1); // TR
+      await _(0, [0], 2); // F2
+      await _(3, [0, 1], -1); // TL'
+      await _(2, [0], 2); // B2
+      await _(1, [0, 1], 2); // TR2
+    };
+
+    topFace = 5;
+    frontFace = 0;
+    let count = countEdgeColor(5, 5, 1);
+    if (count == 4) return;
+    else if (count == 1 || count == 3) {
+      // 4 阶特殊情况
+      await formulaMagic();
+    } else {
+      if (!count) await formula1();
+      if (getFace(5, 1, 0).color === 5 && getFace(5, 1, ORDER - 1).color === 5) await _(4, [0], 1);
+      if (getFace(5, 0, 1).color === 5 && getFace(5, ORDER - 1, 1).color === 5) {
+        await formula2();
+      } else {
+        while (!stopped && (getFace(5, 0, 1).color !== 5 || getFace(5, 1, 0).color !== 5))
+          await _(4, [0], 1);
+        await formula1();
+      }
+    }
   }
 
   async function solveBottomFace() {
@@ -629,6 +678,9 @@ const Solver4 = function(_rubikCube, _rotation) {
     }
 
     stopped = false;
+    topFace = 4;
+    frontFace = 0;
+
     await solveCenters();
     await solveEdges();
     await solveTopCross();
