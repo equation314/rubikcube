@@ -534,7 +534,70 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveMiddleLayer() {
-    if (stopped) return;
+    while (
+      !stopped &&
+      (!checkFaceEdge(0, 'l') ||
+        !checkFaceEdge(0, 'r') ||
+        !checkFaceEdge(2, 'l') ||
+        !checkFaceEdge(2, 'r'))
+    ) {
+      let found = true;
+      while (!stopped && found) {
+        found = false;
+        for (let i = 0; i < 4; i++) {
+          let c1 = getFace(i, ORDER - 1, 1).color,
+            c2 = getAdjColor(i, 'd');
+          if (c1 === 5 || c2 === 5) continue;
+
+          await _(5, [0], c1 - i); // 把当前面的i色转到面c
+          frontFace = c1;
+          if (c2 === (c1 + 1) % 4) {
+            await _(5, [0], -1); // D'
+            await _(1, [0], -1); // R'
+            await _(5, [0], 1); // D
+            await _(1, [0], 1); // R
+            await _(5, [0], 1); // D
+            await _(0, [0], 1); // F
+            await _(5, [0], -1); // D'
+            await _(0, [0], -1); // F'
+          } else {
+            await _(5, [0], 1); // D
+            await _(3, [0], 1); // L
+            await _(5, [0], -1); // D'
+            await _(3, [0], -1); // L'
+            await _(5, [0], -1); // D'
+            await _(0, [0], -1); // F'
+            await _(5, [0], 1); // D
+            await _(0, [0], 1); // F
+          }
+          frontFace = 0;
+          found = true;
+        }
+      }
+      // 中间层错误棱块移到第三层
+      for (let i = 0; i < 4; i++)
+        if (
+          getFace(i, 1, ORDER - 1).color !== 5 &&
+          getAdjColor(i, 1, ORDER - 1) !== 5 &&
+          !checkFaceEdge(i, 'r')
+        ) {
+          while (
+            !stopped &&
+            getFace(i, ORDER - 1, 1).color !== 5 &&
+            getAdjColor(i, ORDER - 1, 1) !== 5
+          )
+            await _(5, [0], 1);
+          frontFace = i;
+          await _(5, [0], -1); // D'
+          await _(1, [0], -1); // R'
+          await _(5, [0], 1); // D
+          await _(1, [0], 1); // R
+          await _(5, [0], 1); // D
+          await _(0, [0], 1); // F
+          await _(5, [0], -1); // D'
+          await _(0, [0], -1); // F'
+        }
+    }
   }
 
   async function solveBottomCross() {
