@@ -371,6 +371,8 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveEdges() {
+    if (ORDER <= 3) return;
+
     let found = true;
     while (found && !stopped) {
       found = false;
@@ -408,6 +410,8 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveTopCross() {
+    if (ORDER <= 2) return;
+
     while (
       !stopped &&
       (!checkFaceEdge(0, 'u') ||
@@ -534,6 +538,8 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveMiddleLayer() {
+    if (ORDER <= 2) return;
+
     const formula = async dir => {
       await _(5, [0], -dir); // D'
       await _(dir > 0 ? 1 : 3, [0], -dir); // R'
@@ -591,7 +597,9 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveBottomCross() {
-    if (stopped) return;
+    topFace = 5;
+    frontFace = 2;
+    if (stopped || ORDER <= 2) return;
 
     const formula1 = async () => {
       await _(1, [0], -1); // R'
@@ -633,8 +641,6 @@ const Solver4 = function(_rubikCube, _rotation) {
       await _(1, [0, 1], 2); // TR2
     };
 
-    topFace = 5;
-    frontFace = 2;
     let count = countEdgeColor(5, 5, 1);
 
     if (count == 4) return;
@@ -704,9 +710,12 @@ const Solver4 = function(_rubikCube, _rotation) {
       if (count == 4) break;
       await formula();
     }
+    while (!stopped && countCornerColor(0, 0) !== 4) await _(4, [0], 1);
   }
 
   async function solveBottomEdges() {
+    if (ORDER <= 2) return;
+
     const formula = async () => {
       await _(1, [0], 1); // R
       await _(4, [0], -1); // U'
@@ -742,7 +751,6 @@ const Solver4 = function(_rubikCube, _rotation) {
       else if (count == 2) await formulaMagic();
       await formula();
     }
-    while (!stopped && countEdgeColor(0, 0, 1) !== 4) await _(4, [0], 1);
   }
 
   this.isStopped = () => stopped;
