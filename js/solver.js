@@ -653,16 +653,15 @@ const Solver4 = function(_rubikCube, _rotation) {
 
   async function solveBottomFace() {
     const formula = async () => {
-      await _(3, [0], 1);
-      await _(4, [0], 1);
-      await _(3, [0], -1);
-      await _(4, [0], 1);
-      await _(3, [0], 1);
-      await _(4, [0], 2);
-      await _(3, [0], -1);
+      await _(3, [0], 1); // L
+      await _(4, [0], 1); // U
+      await _(3, [0], -1); // L'
+      await _(4, [0], 1); // U
+      await _(3, [0], 1); // L
+      await _(4, [0], 2); // U2
+      await _(3, [0], -1); // L'
     };
 
-    if (stopped) return;
     while (!stopped) {
       let count = countCornerColor(5, 5);
       if (count == 4) break;
@@ -682,7 +681,29 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveBottomCorners() {
-    if (stopped) return;
+    const formula = async () => {
+      await _(1, [0], 1); // R
+      await _(2, [0], -1); // B'
+      await _(1, [0], 1); // R
+      await _(0, [0], 2); // F2
+      await _(1, [0], -1); // R'
+      await _(2, [0], 1); // B
+      await _(1, [0], 1); // R
+      await _(0, [0], 2); // F2
+      await _(1, [0], 2); // R2
+    };
+
+    while (!stopped) {
+      frontFace = 2;
+      let count = 0;
+      for (let i = 0; i < 4; i++)
+        if (getFace(i, ORDER - 1, 0).color === getFace(i, ORDER - 1, ORDER - 1).color) {
+          frontFace = i;
+          count++;
+        }
+      if (count == 4) break;
+      await formula();
+    }
   }
 
   async function solveBottomEdges() {
