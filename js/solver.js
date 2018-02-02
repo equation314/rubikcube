@@ -32,12 +32,14 @@ const Solver4 = function(_rubikCube, _rotation) {
   ];
   var INV_TRACK_INFO = [];
 
-  const DIR_TO_RC = {
+  const EDGE_RC = {
     l: [1, 0],
     u: [0, 1],
     r: [1, ORDER - 1],
     d: [ORDER - 1, 1],
   };
+
+  const CORNER_RC = [[ORDER - 1, ORDER - 1], [0, ORDER - 1], [0, 0], [ORDER - 1, 0]];
 
   var faces = [];
   var edgeToFace = [];
@@ -184,10 +186,9 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function forEachCornerAsync(callback) {
-    await callback(0, 0);
-    await callback(0, ORDER - 1);
-    await callback(ORDER - 1, 0);
-    await callback(ORDER - 1, ORDER - 1);
+    for (let i = 0; i < 4; i++) {
+      await callback(CORNER_RC[i][0], CORNER_RC[i][1], i);
+    }
   }
 
   function forEachCenter(callback) {
@@ -207,10 +208,9 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   function forEachCorner(callback) {
-    callback(0, 0);
-    callback(0, ORDER - 1);
-    callback(ORDER - 1, 0);
-    callback(ORDER - 1, ORDER - 1);
+    for (let i = 0; i < 4; i++) {
+      callback(CORNER_RC[i][0], CORNER_RC[i][1], i);
+    }
   }
 
   // 统计 face 面上中心块颜色为 color 的个数
@@ -325,9 +325,17 @@ const Solver4 = function(_rubikCube, _rotation) {
   // 检查 face 面 dir 方向的棱块是否归位
   function checkFaceEdge(face, dir) {
     return (
-      getFace(face, DIR_TO_RC[dir][0], DIR_TO_RC[dir][1]).color === face &&
+      getFace(face, EDGE_RC[dir][0], EDGE_RC[dir][1]).color === face &&
       getAdjFace(face, dir) === getAdjColor(face, dir)
     );
+  }
+
+  // 检查顶面 dir 方向的角块是否归位
+  function checkTopCorner(dir) {
+    if (getFace(4, CORNER_RC[dir][0], CORNER_RC[dir][1]).color !== 4) return false;
+    if (getFace(dir, 0, ORDER - 1).color !== dir) return false;
+    if (getFace((dir + 1) % 4, 0, 0).color !== (dir + 1) % 4) return false;
+    return true;
   }
 
   async function solveCenters() {
@@ -363,8 +371,6 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveEdges() {
-    if (stopped) return;
-
     let found = true;
     while (found && !stopped) {
       found = false;
@@ -402,8 +408,6 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveTopCross() {
-    if (stopped) return;
-
     while (
       !stopped &&
       (!checkFaceEdge(0, 'u') ||
@@ -412,7 +416,7 @@ const Solver4 = function(_rubikCube, _rotation) {
         !checkFaceEdge(3, 'u'))
     ) {
       // 底面白色棱块归位
-      while (countEdgeColor(5, 4, 1) > 0) {
+      while (!stopped && countEdgeColor(5, 4, 1) > 0) {
         await forEachEdgeAsync(async (r, c, dir) => {
           if (getFace(5, r, c).color === 4) {
             let adjFace = getAdjFace(5, dir),
@@ -456,7 +460,77 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   async function solveTopCorners() {
-    if (stopped) return;
+    while (
+      !stopped &&
+      (!checkTopCorner(0) || !checkTopCorner(1) || !checkTopCorner(2) || !checkTopCorner(3))
+    ) {
+      // 侧面底部白色角块归位
+      let found = true;
+      while (!stopped && found) {
+        found = false;
+        for (let i = 0; i < 4; i++) {
+          if (getFace(i, ORDER - 1, 0).color == 4) {
+            let id = getFace(i, ORDER - 1, 0).id,
+              bottomColor;
+            forEachCorner((r, c) => {
+              if (getFace(5, r, c).id === id) bottomColor = getFace(5, r, c).color;
+            });
+            await _(5, [0], bottomColor - i);
+            await _(bottomColor, [0], -1);
+            await _(5, [0], -1);
+            await _(bottomColor, [0], 1);
+            found = true;
+          }
+          if (getFace(i, ORDER - 1, ORDER - 1).color == 4) {
+            let id = getFace(i, ORDER - 1, ORDER - 1).id,
+              bottomColor;
+            forEachCorner((r, c) => {
+              if (getFace(5, r, c).id === id) bottomColor = getFace(5, r, c).color;
+            });
+            await _(5, [0], bottomColor - i);
+            await _(bottomColor, [0], 1);
+            await _(5, [0], 1);
+            await _(bottomColor, [0], -1);
+            found = true;
+          }
+        }
+      }
+      // 侧面顶部白色角块移到侧面底部
+      for (let i = 0; i < 4; i++) {
+        if (getFace(i, 0, 0).color === 4) {
+          await _(i, [0], -1);
+          await _(5, [0], -1);
+          await _(i, [0], 1);
+        }
+        if (getFace(i, 0, ORDER - 1).color === 4) {
+          await _(i, [0], 1);
+          await _(5, [0], 1);
+          await _(i, [0], -1);
+        }
+      }
+      // 底面白色角块移到侧面底部
+      await forEachCornerAsync(async (r, c, dir) => {
+        if (!stopped && getFace(5, r, c).color === 4) {
+          let replaceFace;
+          forEachCorner((r, c, d) => {
+            if (replaceFace === undefined && !checkTopCorner(d)) replaceFace = d;
+          });
+          await _(5, [0], (replaceFace + dir - 1) % 4);
+          await _(replaceFace, [0], 1);
+          await _(5, [0], -1);
+          await _(replaceFace, [0], -1);
+        }
+      });
+      // 顶面错误白色角块移到侧面底部
+      await forEachCornerAsync(async (r, c, dir) => {
+        if (!stopped && getFace(4, r, c).color === 4 && !checkTopCorner(dir)) {
+          await _(dir, [0], 1);
+          await _(5, [0], 1);
+          await _(dir, [0], -1);
+          await _(5, [0], -1);
+        }
+      });
+    }
   }
 
   async function solveMiddleLayer() {
