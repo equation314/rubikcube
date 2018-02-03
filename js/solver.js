@@ -152,6 +152,8 @@ const Solver4 = function(_rubikCube, _rotation) {
   async function _(face, layers, dir) {
     // console.log(face, layers, dir);
     let num = Math.abs(dir);
+    if (num == 0) return;
+
     dir = dir / num;
     if (num == 3) {
       num = 1;
@@ -165,8 +167,7 @@ const Solver4 = function(_rubikCube, _rotation) {
     } else if (face == 4)
       face = topFace; // U
     else face = topFace ^ 1; // D
-
-    for (; num > 0 && !stopped; num--) await _rotation.start(face, layers, dir);
+    await _rotation.start({ face, layers, dir, num });
   }
 
   async function forEachCenterAsync(callback) {

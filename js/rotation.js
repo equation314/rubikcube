@@ -2,58 +2,75 @@ const Rotation = function(_onRotate, _onRotateStop) {
   this.rotationSpeed = 1;
   this.rotating = false;
 
+  var top = 0,
+    length = 0;
+  var stack = [];
+  var currentOperator = {};
+  var currentAngle, targetAngle, rotataionDir;
+
   this.update = () => {
     if (!this.rotating) return;
 
-    this.angle += 0.05 * this.dir * this.rotationSpeed;
-    let delta = (this.dstAngle - this.angle) * this.dir;
+    currentAngle += 0.05 * this.rotationSpeed * rotataionDir;
+    let delta = (targetAngle - currentAngle) * rotataionDir;
+    let { face, layers } = currentOperator;
 
     if (delta <= 0) this.stop();
-    else _onRotate && _onRotate(this.face, this.layers, this.angle);
+    else _onRotate && _onRotate(face, layers, currentAngle);
   };
 
   this.stop = () => {
-    this.angle = 0;
+    currentAngle = 0;
     this.rotating = false;
     clearInterval(this.timer);
-    _onRotate && _onRotate(this.face, this.layers, 0);
-    this.onStop && this.onStop(this.face, this.layers, this.dir);
-    this.resolve && this.resolve();
+
+    let { face, layers, dir, num } = currentOperator;
+    _onRotate && _onRotate(face, layers, 0);
+    _onRotateStop && _onRotateStop(face, layers, dir, num);
+    onResolve && onResolve();
   };
 
-  this.start = (
-    face,
-    layers,
-    dir,
-    srcAngle = 0,
-    dstAngle = dir * (Math.PI / 2),
-    onStop = _onRotateStop
-  ) => {
+  this.start = (operator, srcAngle = 0, dstAngle = operator.dir * operator.num * (Math.PI / 2)) => {
     if (this.rotating) return;
     return new Promise((resolve, reject) => {
-      this.face = face;
-      this.layers = layers;
-      this.dir = dir || (srcAngle < dstAngle ? 1 : -1);
+      currentOperator = operator;
+      currentAngle = srcAngle;
+      targetAngle = dstAngle;
+      rotataionDir = srcAngle < dstAngle ? 1 : -1;
+      onResolve = resolve;
       this.rotating = true;
-      this.angle = srcAngle;
-      this.dstAngle = dstAngle;
-      this.onStop = onStop;
-      this.resolve = resolve;
+      pushNewOperator();
     });
   };
 
-  this.onKeyDown = event => {
-    const key2face = {
-      KeyF: 0,
-      KeyR: 1,
-      KeyB: 2,
-      KeyL: 3,
-      KeyU: 4,
-      KeyD: 5,
-    };
-    if (key2face[event.code] !== undefined)
-      this.start(key2face[event.code], [event.ctrlKey ? 1 : 0], event.shiftKey ? -1 : 1);
+  function pushNewOperator() {
+    if (!currentOperator.inStack && currentOperator.num > 0) {
+      currentOperator.inStack = true;
+      stack[top++] = currentOperator;
+      length = top;
+      this.onUndoRedoChange && this.onUndoRedoChange(true, false);
+    }
+  }
+
+  this.undo = async () => {
+    if (!this.rotating && top > 0) {
+      let { face, layers, dir, num } = stack[--top];
+      await this.start({
+        face,
+        layers,
+        dir: -dir,
+        num,
+        inStack: true,
+      });
+      this.onUndoRedoChange && this.onUndoRedoChange(top > 0, true);
+    }
   };
 
-  window.addEventListener('keydown', this.onKeyDown, false);
+  this.redo = async () => {
+    if (!this.rotating && top < length) {
+      let oper = stack[top++];
+      await this.start(oper);
+      this.onUndoRedoChange && this.onUndoRedoChange(true, top < length);
+    }
+  };
 };

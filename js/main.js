@@ -3,7 +3,6 @@ var stats, mouse, rotation, stats, dom;
 var rubikCube, solver;
 var lastAcc = { x: 0, y: 0, z: 0, t: 0 };
 var dragState = null;
-var enableDrag = true;
 var stopShuffle = true;
 
 function init() {
@@ -50,12 +49,37 @@ function animate() {
 }
 
 function onKeyDown(event) {
+  const key2face = {
+    KeyF: 0,
+    KeyR: 1,
+    KeyB: 2,
+    KeyL: 3,
+    KeyU: 4,
+    KeyD: 5,
+  };
+  if (key2face[event.code] !== undefined) {
+    rotation.start({
+      face: key2face[event.code],
+      layers: [event.ctrlKey ? 1 : 0],
+      dir: event.shiftKey ? -1 : 1,
+      num: 1,
+    });
+    return;
+  }
+
   switch (event.code) {
     case 'Space':
       randomShuffle();
       break;
     case 'Enter':
       solve();
+      break;
+    case 'KeyZ':
+      if (event.ctrlKey && event.shiftKey) {
+        rotation.redo();
+      } else if (event.ctrlKey) {
+        rotation.undo();
+      }
       break;
   }
 }
@@ -65,7 +89,7 @@ function onMouseMove(event) {
   mouse.y = -((event.touches && event.touches[0]) || event).clientY / window.innerHeight * 2 + 1;
 
   event.preventDefault();
-  if (!dragState || !enableDrag) return;
+  if (!dragState || rotation.rotating) return;
 
   raycaster.setFromCamera(mouse, camera);
   let direction = new THREE.Vector3();
@@ -126,7 +150,7 @@ function onMouseMove(event) {
 }
 
 function onMouseDown(event) {
-  if (event.button == 2 || dragState || !enableDrag) return;
+  if (event.button == 2 || dragState || rotation.rotating) return;
   onMouseMove(event);
 
   raycaster.setFromCamera(mouse, camera);
@@ -148,7 +172,7 @@ function onMouseDown(event) {
 }
 
 function onMouseUp(event) {
-  if (dragState && dragState.rotFace !== undefined && enableDrag) {
+  if (dragState && dragState.rotFace !== undefined && !rotation.rotating) {
     let num = Math.round(dragState.angle / (Math.PI / 2));
     let dstAngle = num * (Math.PI / 2);
     let face = dragState.rotFace,
@@ -156,11 +180,7 @@ function onMouseUp(event) {
       dir = dragState.rotDir;
     if (dstAngle) num = Math.abs(num) % 4;
 
-    enableDrag = false;
-    rotation.start(face, layers, 0, dragState.angle, dstAngle, () => {
-      rubikCube.rotateModel(face, layers, dir, num);
-      enableDrag = true;
-    });
+    rotation.start({ face, layers, dir, num }, dragState.angle, dstAngle);
   }
   controls.enabled = true;
   dragState = null;
@@ -184,6 +204,12 @@ function onDevicemotion(event) {
   }
 }
 
+function onChangeRotationSpeed() {}
+
+function onReset() {}
+
+function onUndoRedoChange(canUndo, canRedo) {}
+
 function addEvent() {
   window.addEventListener('keydown', onKeyDown, false);
   window.addEventListener('devicemotion', onDevicemotion, false);
@@ -193,6 +219,7 @@ function addEvent() {
   dom.addEventListener('touchstart', onMouseDown, false);
   document.addEventListener('mousemove', onMouseMove, false);
   document.addEventListener('touchmove', onMouseMove, false);
+  rotation.onUndoRedoChange = onUndoRedoChange;
 }
 
 async function randomShuffle(num) {
@@ -201,7 +228,6 @@ async function randomShuffle(num) {
     return;
   }
   if (rotation.rotating || dragState) return;
-  enableDrag = false;
   stopShuffle = false;
   while (true) {
     if (num !== undefined) {
@@ -211,9 +237,8 @@ async function randomShuffle(num) {
     let face = Math.floor(Math.random() * 6);
     let dir = Math.random() > 0.5 ? 1 : -1;
     let layer = Math.floor(Math.random() * rubikCube.LAYER_COUNT);
-    await rotation.start(face, [layer], dir);
+    await rotation.start({ face, layers: [layer], dir, num: 1 });
   }
-  enableDrag = true;
 }
 
 async function solve() {
@@ -222,9 +247,7 @@ async function solve() {
     return;
   }
   if (rotation.rotating || dragState) return;
-  enableDrag = false;
   await solver.solve();
-  enableDrag = true;
 }
 
 $(document).ready(() => {
