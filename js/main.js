@@ -8,7 +8,6 @@ var stopShuffle = true;
 function init() {
   let w = window.innerWidth,
     h = window.innerHeight;
-  scene = new THREE.Scene();
   raycaster = new THREE.Raycaster();
 
   camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
@@ -29,15 +28,9 @@ function init() {
   stats = new Stats();
   document.body.appendChild(stats.dom);
 
-  rubikCube = new RubikCube(4);
-  rubikCube.createScene(scene);
-
-  rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
-  rotation.rotationSpeed = 1;
-
-  solver = new Solver4(rubikCube, rotation);
-
   mouse = new THREE.Vector2();
+
+  createRubikCube(3);
 }
 
 function animate() {
@@ -46,6 +39,21 @@ function animate() {
   stats.update();
   rotation.update();
   renderer.render(scene, camera);
+}
+
+function createRubikCube(order) {
+  solver && solver.stop();
+  rotation && rotation.reset();
+  stopShuffle = true;
+  dragState = null;
+
+  scene = new THREE.Scene();
+  rubikCube = new RubikCube(order);
+  rubikCube.createScene(scene);
+
+  rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
+
+  solver = new Solver4(rubikCube, rotation);
 }
 
 function onKeyDown(event) {
@@ -64,6 +72,10 @@ function onKeyDown(event) {
       dir: event.shiftKey ? -1 : 1,
       num: 1,
     });
+    return;
+  } else if (event.code.startsWith('Digit')) {
+    let order = parseInt(event.code.substring(5));
+    if (order > 0) createRubikCube(order);
     return;
   }
 
@@ -220,7 +232,9 @@ function onReset() {
   controls.reset();
 }
 
-function onChangeRotationSpeed() {}
+function setRotationSpeed(speed) {
+  rotation.rotationSpeed = speed;
+}
 
 function onUndoRedoChange(canUndo, canRedo) {}
 

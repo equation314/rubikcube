@@ -159,8 +159,8 @@ const Solver4 = function(_rubikCube, _rotation) {
   // 当前视角下(topFace 面在上, frontFace 面在前)，顺时针旋转 face 面的 layers 层 dir 次
   async function _(face, layers, dir) {
     // console.log(face, layers, dir);
+    if (stopped || dir == 0) return;
     let num = Math.abs(dir);
-    if (num == 0) return;
 
     dir = dir / num;
     if (num == 3) {
@@ -778,7 +778,7 @@ const Solver4 = function(_rubikCube, _rotation) {
   };
 
   this.solve = async () => {
-    if (!stopped) return;
+    if (!stopped || ORDER == 1) return;
     if (ORDER > 4) {
       alert('The maximum solveble order is 4!');
       return;
