@@ -222,6 +222,12 @@ function onDevicemotion(event) {
   }
 }
 
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
 function onReset() {
   stopShuffle = true;
   dragState = null;
@@ -241,6 +247,7 @@ function onUndoRedoChange(canUndo, canRedo) {}
 function addEvent() {
   window.addEventListener('keydown', onKeyDown, false);
   window.addEventListener('devicemotion', onDevicemotion, false);
+  window.addEventListener('resize', onWindowResize, false);
   document.addEventListener('mouseup', onMouseUp, false);
   document.addEventListener('touchend', onMouseUp, false);
   dom.addEventListener('mousedown', onMouseDown, false);
