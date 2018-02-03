@@ -95,18 +95,26 @@ const Solver4 = function(_rubikCube, _rotation) {
     return res;
   }
 
+  function reset() {
+    stopped = true;
+    frontFace = 0;
+    topFace = 4;
+
+    for (let i = 0; i < 6; i++)
+      for (let j = 0; j < ORDER; j++)
+        for (let k = 0; k < ORDER; k++)
+          faces[getFaceId(i, j, k)] = { color: i, id: _rubikCube.getCubeIdByFace(i, 0, j, k) };
+  }
+
   function init() {
+    reset();
+
     _rubikCube.setOnSwap((fs, rs, cs, dir) => {
       let tmp = [];
       for (let i = 0; i < 4; i++)
         tmp[(i + dir + 4) % 4] = JSON.stringify(getFace(fs[i], rs[i], cs[i]));
       for (let i = 0; i < 4; i++) faces[getFaceId(fs[i], rs[i], cs[i])] = JSON.parse(tmp[i]);
     });
-
-    for (let i = 0; i < 6; i++)
-      for (let j = 0; j < ORDER; j++)
-        for (let k = 0; k < ORDER; k++)
-          faces[getFaceId(i, j, k)] = { color: i, id: _rubikCube.getCubeIdByFace(i, 0, j, k) };
 
     for (let i = 0; i < EDGE_LENGHT; i++) {
       for (let j = 0; j < 4; j++) {
@@ -762,6 +770,8 @@ const Solver4 = function(_rubikCube, _rotation) {
   }
 
   this.isStopped = () => stopped;
+
+  this.reset = reset;
 
   this.stop = () => {
     stopped = true;

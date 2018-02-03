@@ -74,12 +74,18 @@ function onKeyDown(event) {
     case 'Enter':
       solve();
       break;
+    case 'KeyO':
+      controls.reset();
     case 'KeyZ':
       if (event.ctrlKey && event.shiftKey) {
         rotation.redo();
       } else if (event.ctrlKey) {
         rotation.undo();
       }
+      break;
+      break;
+    case 'F5':
+      onReset();
       break;
   }
 }
@@ -204,9 +210,17 @@ function onDevicemotion(event) {
   }
 }
 
-function onChangeRotationSpeed() {}
+function onReset() {
+  stopShuffle = true;
+  dragState = null;
+  solver.stop();
+  rotation.reset();
+  rubikCube.reset();
+  solver.reset();
+  controls.reset();
+}
 
-function onReset() {}
+function onChangeRotationSpeed() {}
 
 function onUndoRedoChange(canUndo, canRedo) {}
 

@@ -73,4 +73,12 @@ const Rotation = function(_onRotate, _onRotateStop) {
       this.onUndoRedoChange && this.onUndoRedoChange(true, top < length);
     }
   };
+
+  this.reset = () => {
+    this.rotating = false;
+    top = 0;
+    length = 0;
+    stack = [];
+    this.onUndoRedoChange && this.onUndoRedoChange(false, false);
+  };
 };

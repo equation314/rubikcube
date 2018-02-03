@@ -144,19 +144,6 @@ const RubikCube = function(_order) {
 
             let size = SUB_SIZE - SEPARATOR_WIDTH;
             let cubeGeo = new THREE.BoxGeometry(size, size, size);
-            cubeGeo.faces.forEach((face, index) => {
-              let id = TO_LOGIC_FACE[index];
-              let color =
-                (id == 0 && k == ORDER - 1) ||
-                (id == 1 && i == ORDER - 1) ||
-                (id == 2 && k == 0) ||
-                (id == 3 && i == 0) ||
-                (id == 4 && j == ORDER - 1) ||
-                (id == 5 && j == 0)
-                  ? FACE_COLOR[id]
-                  : INTERIOR_COLOR;
-              face.color = new THREE.Color(color);
-            });
             cubeGeo.translate(
               (SUB_SIZE - SIZE) / 2 + SUB_SIZE * i,
               (SUB_SIZE - SIZE) / 2 + SUB_SIZE * j,
@@ -184,6 +171,31 @@ const RubikCube = function(_order) {
           }
   }
 
+  this.reset = () => {
+    for (let i = 0; i < ORDER; i++)
+      for (let j = 0; j < ORDER; j++)
+        for (let k = 0; k < ORDER; k++) {
+          let cube = cubes[getCubeId(i, j, k)];
+          if (cube) {
+            cube.rotation.set(0, 0, 0);
+            cube.geometry.colorsNeedUpdate = true;
+            cube.geometry.faces.forEach((face, index) => {
+              let id = TO_LOGIC_FACE[index];
+              let color =
+                (id == 0 && k == ORDER - 1) ||
+                (id == 1 && i == ORDER - 1) ||
+                (id == 2 && k == 0) ||
+                (id == 3 && i == 0) ||
+                (id == 4 && j == ORDER - 1) ||
+                (id == 5 && j == 0)
+                  ? FACE_COLOR[id]
+                  : INTERIOR_COLOR;
+              face.color.set(color);
+            });
+          }
+        }
+  };
+
   this.createScene = scene => {
     createAxis(scene);
     createCubes(scene);
@@ -197,6 +209,8 @@ const RubikCube = function(_order) {
       light2.position.set((i == 0) * -SIZE, (i == 1) * -SIZE, (i == 2) * -SIZE);
       scene.add(light2);
     }
+
+    this.reset();
   };
 
   this.rotateScene = (face, layers, angle) => {
