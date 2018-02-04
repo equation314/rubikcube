@@ -1,9 +1,15 @@
 var camera, scene, renderer, raycaster, controls;
-var stats, mouse, rotation, stats, dom;
+var stats, gui, controller, mouse, rotation, stats, dom;
 var rubikCube, solver;
 var lastAcc = { x: 0, y: 0, z: 0, t: 0 };
 var dragState = null;
 var stopShuffle = true;
+
+const Controller = function(_order, _speed) {
+  this.order = _order;
+  this.rotationSpeed = _speed;
+  this.resetCamera = () => controls.reset();
+};
 
 function init() {
   let w = window.innerWidth,
@@ -30,7 +36,19 @@ function init() {
 
   mouse = new THREE.Vector2();
 
-  createRubikCube(3);
+  controller = new Controller(4, 1);
+  gui = new dat.GUI();
+  gui
+    .add(controller, 'order', 1, 20, 1)
+    .name('阶数')
+    .onFinishChange(createRubikCube);
+  gui
+    .add(controller, 'rotationSpeed', 0.1, 5)
+    .name('旋转速度')
+    .onChange(setRotationSpeed);
+  gui.add(controller, 'resetCamera').name('重置视图');
+
+  createRubikCube(controller.order);
 }
 
 function animate() {
@@ -52,6 +70,7 @@ function createRubikCube(order) {
   rubikCube.createScene(scene);
 
   rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
+  rotation.rotationSpeed = controller.rotationSpeed;
 
   solver = new Solver4(rubikCube, rotation);
 }
@@ -88,13 +107,13 @@ function onKeyDown(event) {
       break;
     case 'KeyO':
       controls.reset();
+      break;
     case 'KeyZ':
       if (event.ctrlKey && event.shiftKey) {
         rotation.redo();
       } else if (event.ctrlKey) {
         rotation.undo();
       }
-      break;
       break;
     case 'F5':
       onReset();
