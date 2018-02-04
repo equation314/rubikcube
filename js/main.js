@@ -4,6 +4,8 @@ var rubikCube, solver;
 var lastAcc = { x: 0, y: 0, z: 0, t: 0 };
 var dragState = null;
 var stopShuffle = true;
+var canUndo = false,
+  canRedo = false;
 
 const Controller = function(_order, _speed) {
   this.order = _order;
@@ -48,7 +50,7 @@ function init() {
     .onChange(setRotationSpeed);
   gui.add(controller, 'resetCamera').name('重置视图');
 
-  createRubikCube(controller.order);
+  createRubikCube();
 }
 
 function animate() {
@@ -59,14 +61,14 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-function createRubikCube(order) {
-  solver && solver.stop();
+function createRubikCube() {
+  stopShuffling();
+  stopSolving();
   rotation && rotation.reset();
-  stopShuffle = true;
   dragState = null;
 
   scene = new THREE.Scene();
-  rubikCube = new RubikCube(order);
+  rubikCube = new RubikCube(controller.order);
   rubikCube.createScene(scene);
 
   rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
@@ -248,9 +250,9 @@ function onWindowResize() {
 }
 
 function onReset() {
-  stopShuffle = true;
   dragState = null;
-  solver.stop();
+  stopShuffling();
+  stopSolving();
   rotation.reset();
   rubikCube.reset();
   solver.reset();
@@ -261,7 +263,14 @@ function setRotationSpeed(speed) {
   rotation.rotationSpeed = speed;
 }
 
-function onUndoRedoChange(canUndo, canRedo) {}
+function onUndoRedoChange(_canUndo, _canRedo) {
+  canUndo = _canUndo;
+  canRedo = _canRedo;
+  if (stopShuffle && solver.isStopped()) {
+    $('#btn-undo').prop('disabled', !canUndo);
+    $('#btn-redo').prop('disabled', !canRedo);
+  }
+}
 
 function addEvent() {
   window.addEventListener('keydown', onKeyDown, false);
@@ -274,17 +283,35 @@ function addEvent() {
   document.addEventListener('mousemove', onMouseMove, false);
   document.addEventListener('touchmove', onMouseMove, false);
   rotation.onUndoRedoChange = onUndoRedoChange;
+  $('#btn-restart').click(createRubikCube);
+  $('#btn-shuffle').click(randomShuffle);
+  $('#btn-solve').click(solve);
+  $('#btn-undo').click(() => rotation.undo());
+  $('#btn-redo').click(() => rotation.redo());
+}
+
+function stopShuffling() {
+  stopShuffle = true;
+  $('#btn-shuffle').text('打乱');
+  $('#btn-solve').prop('disabled', false);
+  $('#btn-undo').prop('disabled', !canUndo);
+  $('#btn-redo').prop('disabled', !canRedo);
 }
 
 async function randomShuffle(num) {
   if (!stopShuffle) {
-    stopShuffle = true;
+    stopShuffling();
     return;
   }
   if (rotation.rotating || dragState) return;
   stopShuffle = false;
+  $('#btn-shuffle').text('停止');
+  $('#btn-solve').prop('disabled', true);
+  $('#btn-undo').prop('disabled', true);
+  $('#btn-redo').prop('disabled', true);
+
   while (true) {
-    if (num !== undefined) {
+    if (Number.isInteger(num)) {
       if (num === 0) break;
       num--;
     } else if (stopShuffle) break;
@@ -295,12 +322,25 @@ async function randomShuffle(num) {
   }
 }
 
+function stopSolving() {
+  solver && solver.stop();
+  $('#btn-solve').text('复原');
+  $('#btn-shuffle').prop('disabled', false);
+  $('#btn-undo').prop('disabled', !canUndo);
+  $('#btn-redo').prop('disabled', !canRedo);
+}
+
 async function solve() {
   if (!solver.isStopped()) {
-    solver.stop();
+    stopSolving();
     return;
   }
   if (rotation.rotating || dragState) return;
+  $('#btn-solve').text('停止');
+  $('#btn-shuffle').prop('disabled', true);
+  $('#btn-undo').prop('disabled', true);
+  $('#btn-redo').prop('disabled', true);
+
   await solver.solve();
 }
 
