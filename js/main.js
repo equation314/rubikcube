@@ -73,8 +73,11 @@ function createRubikCube() {
 
   rotation = new Rotation(rubikCube.rotateScene, rubikCube.rotateModel);
   rotation.rotationSpeed = controller.rotationSpeed;
+  rotation.onUndoRedoChange = onUndoRedoChange;
 
   solver = new Solver4(rubikCube, rotation);
+
+  $('#btn-solve').prop('disabled', controller.order > 4);
 }
 
 function onKeyDown(event) {
@@ -102,9 +105,11 @@ function onKeyDown(event) {
 
   switch (event.code) {
     case 'Space':
+      event.preventDefault();
       randomShuffle();
       break;
     case 'Enter':
+      event.preventDefault();
       solve();
       break;
     case 'KeyO':
@@ -282,8 +287,7 @@ function addEvent() {
   dom.addEventListener('touchstart', onMouseDown, false);
   document.addEventListener('mousemove', onMouseMove, false);
   document.addEventListener('touchmove', onMouseMove, false);
-  rotation.onUndoRedoChange = onUndoRedoChange;
-  $('#btn-restart').click(createRubikCube);
+  $('#btn-restart').click(onReset);
   $('#btn-shuffle').click(randomShuffle);
   $('#btn-solve').click(solve);
   $('#btn-undo').click(() => rotation.undo());
@@ -320,6 +324,7 @@ async function randomShuffle(num) {
     let layer = Math.floor(Math.random() * rubikCube.LAYER_COUNT);
     await rotation.start({ face, layers: [layer], dir, num: 1 });
   }
+  stopShuffling();
 }
 
 function stopSolving() {
@@ -342,6 +347,8 @@ async function solve() {
   $('#btn-redo').prop('disabled', true);
 
   await solver.solve();
+
+  stopSolving();
 }
 
 $(document).ready(() => {
