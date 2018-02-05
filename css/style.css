@@ -22,3 +22,6 @@ canvas {
 .btn {
   border-radius: 0;
 }
+.dg .c input[type='text'] {
+  line-height: normal;
+}

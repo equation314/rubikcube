@@ -764,8 +764,9 @@ const Solver4 = function(_rubikCube, _rotation) {
           count++;
         }
       if (count == 4) break;
-      else if (count == 2) await formulaMagic(); // 4 阶特殊情况
-      await formula();
+      else if (count == 2)
+        await formulaMagic(); // 4 阶特殊情况
+      else await formula();
     }
   }
 
