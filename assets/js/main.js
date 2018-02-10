@@ -19,7 +19,7 @@ function init() {
   raycaster = new THREE.Raycaster();
 
   camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
-  camera.position.set(4, 3, 7);
+  camera.position.set(4, 4, 8);
   camera.lookAt(new THREE.Vector3(0, 0, 0));
 
   renderer = new THREE.WebGLRenderer({ antialias: true });

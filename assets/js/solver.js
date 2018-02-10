@@ -588,16 +588,8 @@ const Solver4 = function(_rubikCube, _rotation) {
       }
       // 中间层错误棱块移到第三层
       for (let i = 0; i < 4; i++)
-        if (
-          getFace(i, 1, ORDER - 1).color !== 5 &&
-          getAdjColor(i, 1, ORDER - 1) !== 5 &&
-          !checkFaceEdge(i, 'r')
-        ) {
-          while (
-            !stopped &&
-            getFace(i, ORDER - 1, 1).color !== 5 &&
-            getAdjColor(i, ORDER - 1, 1) !== 5
-          )
+        if (getFace(i, 'r').color !== 5 && getAdjColor(i, 'r') !== 5 && !checkFaceEdge(i, 'r')) {
+          while (!stopped && getFace(i, 'd').color !== 5 && getAdjColor(i, 'd') !== 5)
             await _(5, [0], 1);
           frontFace = i;
           await formula(1);
